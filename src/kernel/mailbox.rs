@@ -1,6 +1,7 @@
-use crate::kernel::{Message, Envelope};
-use crate::kernel::queue::{QueueReader, QueueEmpty, QueueWriter, EnqueueResult, queue};
-
+use crate::kernel::dispatcher::Dispatcher;
+use crate::kernel::queue::*;
+use crate::kernel::{Envelope, Message};
+#[allow(dead_code)]
 pub enum MailboxStatus {
     Open,
     Closed,
@@ -11,12 +12,17 @@ pub enum MailboxStatus {
     SuspendUnit,
 }
 
+#[allow(dead_code)]
 pub struct Mailbox<Msg: Message> {
     limit: u32,
     queue: QueueReader<Msg>,
 }
 
 impl<Msg: Message> Mailbox<Msg> {
+    pub fn new(limit: u32, queue: QueueReader<Msg>) -> Self {
+        Self { limit, queue }
+    }
+
     pub fn dequeue(&self) -> Envelope<Msg> {
         self.queue.dequeue()
     }
@@ -25,31 +31,18 @@ impl<Msg: Message> Mailbox<Msg> {
         self.queue.try_dequeue()
     }
 
-    pub fn has_messages(&self) -> bool {
-        self.queue.has_messages()
-    }
-}
-
-#[derive(Clone)]
-pub struct Dispatcher<Msg: Message> {
-    queue: QueueWriter<Msg>,
-}
-
-impl<Msg: Message> Dispatcher<Msg> {
-
-    pub fn try_enqueue(&self, msg: Envelope<Msg>) -> EnqueueResult<Msg> {
-        self.queue.try_enqueue(msg)
+    pub fn non_empty(&self) -> bool {
+        self.queue.non_empty()
     }
 
+    pub fn is_empty(&self) -> bool {
+        !self.non_empty()
+    }
 }
-
-unsafe impl<Msg: Message> Send for Dispatcher<Msg> {}
-
-unsafe impl<Msg: Message> Sync for Dispatcher<Msg> {}
 
 pub fn mailbox<Msg: Message>(limit: u32) -> (Dispatcher<Msg>, Mailbox<Msg>) {
-    let (qw, qr) = queue::<Msg>();
-    let dispatcher = Dispatcher { queue: qw };
-    let mailbox = Mailbox { limit, queue: qr };
+    let (qw, qr) = new_queue::<Msg>();
+    let dispatcher = Dispatcher::new(qw);
+    let mailbox = Mailbox::new(limit, qr);
     (dispatcher, mailbox)
 }

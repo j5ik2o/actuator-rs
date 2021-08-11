@@ -1,9 +1,10 @@
-mod queue;
-mod mailbox;
+#[allow(dead_code)]
 mod actor_cell;
+mod dispatcher;
+mod mailbox;
+mod queue;
 
 use std::fmt::Debug;
-use std::sync::mpsc::{Sender, Receiver, channel};
 
 pub trait Message: Debug + Clone + Send + 'static + PartialEq {}
 // impl<T: Debug + Clone + Send + 'static> Message for T {}

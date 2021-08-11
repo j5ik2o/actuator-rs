@@ -1,6 +1,5 @@
 use crate::kernel::Message;
 
-
 pub trait Actor: Send + Sync + 'static {
     type Msg: Message;
 
