@@ -1,7 +1,7 @@
 use crate::kernel::dispatcher::Dispatcher;
 use crate::kernel::queue::*;
 use crate::kernel::{Envelope, Message};
-#[allow(dead_code)]
+
 pub enum MailboxStatus {
     Open,
     Closed,
@@ -12,7 +12,6 @@ pub enum MailboxStatus {
     SuspendUnit,
 }
 
-#[allow(dead_code)]
 pub struct Mailbox<Msg: Message> {
     limit: u32,
     queue: QueueReader<Msg>,
