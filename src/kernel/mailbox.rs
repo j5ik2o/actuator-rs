@@ -12,21 +12,21 @@ pub enum MailboxStatus {
     SuspendUnit,
 }
 
-pub struct Mailbox<Msg: Message> {
+pub struct Mailbox<M: Message> {
     limit: u32,
-    queue: QueueReader<Msg>,
+    queue: QueueReader<M>,
 }
 
-impl<Msg: Message> Mailbox<Msg> {
-    pub fn new(limit: u32, queue: QueueReader<Msg>) -> Self {
+impl<M: Message> Mailbox<M> {
+    pub fn new(limit: u32, queue: QueueReader<M>) -> Self {
         Self { limit, queue }
     }
 
-    pub fn dequeue(&self) -> Envelope<Msg> {
+    pub fn dequeue(&self) -> Envelope<M> {
         self.queue.dequeue()
     }
 
-    pub fn try_dequeue(&self) -> Result<Envelope<Msg>, QueueEmpty> {
+    pub fn try_dequeue(&self) -> Result<Envelope<M>, QueueEmpty> {
         self.queue.try_dequeue()
     }
 

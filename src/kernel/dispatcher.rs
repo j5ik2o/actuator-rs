@@ -2,20 +2,20 @@ use crate::kernel::queue::{EnqueueResult, QueueWriter};
 use crate::kernel::{Envelope, Message};
 
 #[derive(Clone)]
-pub struct Dispatcher<Msg: Message> {
-    queue: QueueWriter<Msg>,
+pub struct Dispatcher<M: Message> {
+    queue: QueueWriter<M>,
 }
 
-impl<Msg: Message> Dispatcher<Msg> {
-    pub fn new(queue: QueueWriter<Msg>) -> Self {
+impl<M: Message> Dispatcher<M> {
+    pub fn new(queue: QueueWriter<M>) -> Self {
         Self { queue }
     }
 
-    pub fn try_enqueue(&self, msg: Envelope<Msg>) -> EnqueueResult<Msg> {
+    pub fn try_enqueue(&self, msg: Envelope<M>) -> EnqueueResult<M> {
         self.queue.try_enqueue(msg)
     }
 }
 
-unsafe impl<Msg: Message> Send for Dispatcher<Msg> {}
+unsafe impl<M: Message> Send for Dispatcher<M> {}
 
-unsafe impl<Msg: Message> Sync for Dispatcher<Msg> {}
+unsafe impl<M: Message> Sync for Dispatcher<M> {}

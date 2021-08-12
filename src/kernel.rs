@@ -13,20 +13,20 @@ pub trait Message: Debug + Clone + Send + 'static + PartialEq {}
 // impl<T: Debug + Clone + Send + 'static> Message for T {}
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Envelope<T: Message> {
+pub struct Envelope<M: Message> {
     //  pub sender: Option<BasicActorRef>,
-    pub msg: T,
+    pub msg: M,
 }
 
-impl<T: Message> Envelope<T> {
-    pub fn new(value: T) -> Self {
+impl<M: Message> Envelope<M> {
+    pub fn new(value: M) -> Self {
         Self { msg: value }
     }
 }
 
 
-pub fn new_mailbox<Msg: Message>(limit: u32) -> (Dispatcher<Msg>, Mailbox<Msg>) {
-    let (qw, qr) = new_queue::<Msg>();
+pub fn new_mailbox<M: Message>(limit: u32) -> (Dispatcher<M>, Mailbox<M>) {
+    let (qw, qr) = new_queue();
     let dispatcher = Dispatcher::new(qw);
     let mailbox = Mailbox::new(limit, qr);
     (dispatcher, mailbox)
