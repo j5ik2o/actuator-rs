@@ -25,7 +25,7 @@ mod tests {
 
     #[test]
     fn test_new_queue() {
-        let (qw, qr) = new_queue::<Counter>();
+        let (qw, qr) = new_queue();
         let expected_message = Envelope::new(Counter(1));
         qw.try_enqueue(expected_message.clone()).unwrap();
 

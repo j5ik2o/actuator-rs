@@ -42,7 +42,7 @@ mod tests {
 
     #[test]
     fn test_new_mailbox() {
-        let (qw, qr) = new_mailbox::<Counter>(1);
+        let (qw, qr) = new_mailbox(1);
         let expected_message = Envelope::new(Counter(1));
         qw.try_enqueue(expected_message.clone()).unwrap();
 
