@@ -24,7 +24,7 @@ impl<M: Message> Envelope<M> {
   }
 }
 
-pub fn new_mailbox<M: Message>(limit: u32) -> (Dispatcher<M>, Mailbox<M>) {
+pub fn new_dispatcher_mailbox<M: Message>(limit: u32) -> (Dispatcher<M>, Mailbox<M>) {
   let (qw, qr) = new_queue();
   let dispatcher = Dispatcher::new(qw);
   let mailbox = Mailbox::new(limit, qr);
@@ -42,7 +42,7 @@ mod tests {
 
   #[test]
   fn test_new_mailbox() {
-    let (dispatcher1, mailbox1) = new_mailbox(1);
+    let (dispatcher1, mailbox1) = new_dispatcher_mailbox(2);
     let expected_message1 = Envelope::new(Counter(1));
     dispatcher1.try_enqueue(expected_message1.clone()).unwrap();
 
@@ -50,12 +50,12 @@ mod tests {
     let expected_message2 = Envelope::new(Counter(2));
     dispatcher2.try_enqueue(expected_message2.clone()).unwrap();
 
-    let mailbox2 = mailbox1.clone();
+    let mut mailbox2 = mailbox1.clone();
 
-    let received_message1 = mailbox2.try_dequeue().unwrap_or(Envelope::new(Counter(0)));
+    let received_message1 = mailbox2.try_dequeue().unwrap().unwrap_or_default().unwrap();
     assert_eq!(received_message1, expected_message1);
 
-    let received_message2 = mailbox2.try_dequeue().unwrap_or(Envelope::new(Counter(0)));
+    let received_message2 = mailbox2.try_dequeue().unwrap().unwrap_or_default().unwrap();
     assert_eq!(received_message2, expected_message2)
   }
 }

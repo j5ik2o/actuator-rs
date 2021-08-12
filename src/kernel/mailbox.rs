@@ -1,7 +1,8 @@
 use crate::kernel::dispatcher::Dispatcher;
 use crate::kernel::queue::*;
 use crate::kernel::{Envelope, Message};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::ops::Deref;
 
 pub enum MailboxStatus {
   Open,
@@ -15,29 +16,54 @@ pub enum MailboxStatus {
 
 #[derive(Clone)]
 pub struct Mailbox<M: Message> {
-  inner: Arc<MailboxInner<M>>,
+  inner: Arc<Mutex<MailboxInner<M>>>,
 }
 
 struct MailboxInner<M: Message> {
-  limit: u32,
   queue: QueueReader<M>,
+  limit: u32,
+  count: u32,
 }
 
 impl<M: Message> Mailbox<M> {
   pub fn new(limit: u32, queue: QueueReader<M>) -> Self {
-    Self { inner: Arc::from(MailboxInner { limit, queue }) }
+    Self {
+      inner: Arc::from(Mutex::new(MailboxInner {
+        queue,
+        limit,
+        count: 0,
+      })),
+    }
   }
 
-  pub fn dequeue(&self) -> Envelope<M> {
-    self.inner.queue.dequeue()
+  pub fn reset_dequeue_count(&mut self) {
+    let mut inner = self.inner.lock().unwrap();
+    inner.count = 0
   }
 
-  pub fn try_dequeue(&self) -> Result<Envelope<M>, QueueEmpty> {
-    self.inner.queue.try_dequeue()
+  pub fn dequeue(&mut self) -> Option<Envelope<M>> {
+    let mut inner = self.inner.lock().unwrap();
+    if inner.count < inner.limit {
+      inner.count += 1;
+      Some(inner.queue.dequeue())
+    } else {
+      None
+    }
+  }
+
+  pub fn try_dequeue(&mut self) -> Option<DequeueResult<Envelope<M>>> {
+    let mut inner = self.inner.lock().unwrap();
+    if inner.count < inner.limit {
+      inner.count += 1;
+      Some(inner.queue.try_dequeue())
+    } else {
+      None
+    }
   }
 
   pub fn non_empty(&self) -> bool {
-    self.inner.queue.non_empty()
+    let inner = self.inner.lock().unwrap();
+    inner.queue.non_empty()
   }
 
   pub fn is_empty(&self) -> bool {

@@ -1,39 +1,46 @@
 use std::sync::{Arc, Mutex};
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{Receiver, TryRecvError};
 
 use crate::kernel::{Envelope, Message};
 
 pub struct QueueReader<M: Message> {
-  inner: Mutex<QueueReaderInner<M>>
+  inner: Mutex<QueueReaderInner<M>>,
 }
 
 struct QueueReaderInner<M: Message> {
   rx: Receiver<Envelope<M>>,
 }
+pub enum DequeueError {
+  Disconnected,
+}
+pub type DequeueResult<M> = Result<Option<M>, DequeueError>;
 
-pub struct QueueEmpty;
-pub type DequeueResult<Msg> = Result<Msg, QueueEmpty>;
-
-impl<Msg: Message> QueueReader<Msg> {
-  pub fn new(rx: Receiver<Envelope<Msg>>) -> Self {
-    Self { inner: Mutex::new(QueueReaderInner { rx }) }
+impl<M: Message> QueueReader<M> {
+  pub fn new(rx: Receiver<Envelope<M>>) -> Self {
+    Self {
+      inner: Mutex::new(QueueReaderInner { rx }),
+    }
   }
 
-  pub fn dequeue(&self) -> Envelope<Msg> {
+  pub fn dequeue(&self) -> Envelope<M> {
     let inner = self.inner.lock().unwrap();
     inner.rx.recv().unwrap()
   }
 
-  pub fn try_dequeue(&self) -> DequeueResult<Envelope<Msg>> {
+  pub fn try_dequeue(&self) -> DequeueResult<Envelope<M>> {
     let inner = self.inner.lock().unwrap();
-    inner.rx.try_recv().map_err(|_| QueueEmpty)
+    match inner.rx.try_recv() {
+      Ok(e) => Ok(Some(e)),
+      Err(TryRecvError::Empty) => Ok(None),
+      Err(TryRecvError::Disconnected) => Err(DequeueError::Disconnected),
+    }
   }
 
   pub fn non_empty(&self) -> bool {
     let inner = self.inner.lock().unwrap();
     match inner.rx.try_recv() {
       Ok(_) => true,
-      Err(_) => false,
+      _ => false,
     }
   }
 
