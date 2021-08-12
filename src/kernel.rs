@@ -5,6 +5,9 @@ mod mailbox;
 mod queue;
 
 use std::fmt::Debug;
+use crate::kernel::dispatcher::Dispatcher;
+use crate::kernel::mailbox::Mailbox;
+use crate::kernel::queue::new_queue;
 
 pub trait Message: Debug + Clone + Send + 'static + PartialEq {}
 // impl<T: Debug + Clone + Send + 'static> Message for T {}
@@ -18,5 +21,34 @@ pub struct Envelope<T: Message> {
 impl<T: Message> Envelope<T> {
     pub fn new(value: T) -> Self {
         Self { msg: value }
+    }
+}
+
+
+pub fn new_mailbox<Msg: Message>(limit: u32) -> (Dispatcher<Msg>, Mailbox<Msg>) {
+    let (qw, qr) = new_queue::<Msg>();
+    let dispatcher = Dispatcher::new(qw);
+    let mailbox = Mailbox::new(limit, qr);
+    (dispatcher, mailbox)
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug, Clone, PartialEq)]
+    struct Counter(u32);
+
+    impl Message for Counter {}
+
+    #[test]
+    fn test_new_mailbox() {
+        let (qw, qr) = new_mailbox::<Counter>(1);
+        let expected_message = Envelope::new(Counter(1));
+        qw.try_enqueue(expected_message.clone()).unwrap();
+
+        let r = qr.try_dequeue().unwrap_or(Envelope::new(Counter(0)));
+        assert_eq!(expected_message, r)
     }
 }

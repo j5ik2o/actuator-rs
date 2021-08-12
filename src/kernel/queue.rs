@@ -7,7 +7,7 @@ pub use queue_reader::*;
 pub use queue_writer::*;
 use std::sync::mpsc::*;
 
-pub fn new_queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
+pub(crate) fn new_queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
     let (tx, rx) = channel::<Envelope<Msg>>();
     let qw = QueueWriter::new(tx);
     let qr = QueueReader::new(rx);
@@ -16,8 +16,7 @@ pub fn new_queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
 
 #[cfg(test)]
 mod tests {
-    use crate::kernel::queue::*;
-    use crate::kernel::*;
+    use super::*;
 
     #[derive(Debug, Clone, PartialEq)]
     struct Counter(u32);
@@ -25,7 +24,7 @@ mod tests {
     impl Message for Counter {}
 
     #[test]
-    fn test() {
+    fn test_new_queue() {
         let (qw, qr) = new_queue::<Counter>();
         let expected_message = Envelope::new(Counter(1));
         qw.try_enqueue(expected_message.clone()).unwrap();

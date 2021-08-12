@@ -38,10 +38,3 @@ impl<Msg: Message> Mailbox<Msg> {
         !self.non_empty()
     }
 }
-
-pub fn mailbox<Msg: Message>(limit: u32) -> (Dispatcher<Msg>, Mailbox<Msg>) {
-    let (qw, qr) = new_queue::<Msg>();
-    let dispatcher = Dispatcher::new(qw);
-    let mailbox = Mailbox::new(limit, qr);
-    (dispatcher, mailbox)
-}
