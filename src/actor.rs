@@ -1,3 +1,10 @@
+mod actor_cell;
+mod actor_path;
+mod actor_ref;
+mod actor_uri;
+mod context;
+mod extended_cell;
+
 use crate::kernel::Message;
 
 pub trait Actor: Send + Sync + 'static {

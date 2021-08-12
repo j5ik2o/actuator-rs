@@ -4,9 +4,9 @@ mod dispatcher;
 mod mailbox;
 mod queue;
 
-use crate::kernel::dispatcher::Dispatcher;
-use crate::kernel::mailbox::Mailbox;
-use crate::kernel::queue::new_queue;
+pub use dispatcher::Dispatcher;
+pub use mailbox::Mailbox;
+use queue::new_queue;
 use std::fmt::Debug;
 
 pub trait Message: Debug + Clone + Send + 'static + PartialEq {}
