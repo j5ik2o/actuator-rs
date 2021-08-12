@@ -29,7 +29,7 @@ mod tests {
         let expected_message = Envelope::new(Counter(1));
         qw.try_enqueue(expected_message.clone()).unwrap();
 
-        let r = qr.try_dequeue().unwrap_or(Envelope::new(Counter(0)));
-        assert_eq!(expected_message, r)
+        let received_message = qr.try_dequeue().unwrap_or(Envelope::new(Counter(0)));
+        assert_eq!(received_message, expected_message)
     }
 }
