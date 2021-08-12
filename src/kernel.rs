@@ -42,11 +42,20 @@ mod tests {
 
   #[test]
   fn test_new_mailbox() {
-    let (qw, qr) = new_mailbox(1);
-    let expected_message = Envelope::new(Counter(1));
-    qw.try_enqueue(expected_message.clone()).unwrap();
+    let (dispatcher1, mailbox1) = new_mailbox(1);
+    let expected_message1 = Envelope::new(Counter(1));
+    dispatcher1.try_enqueue(expected_message1.clone()).unwrap();
 
-    let received_message = qr.try_dequeue().unwrap_or(Envelope::new(Counter(0)));
-    assert_eq!(received_message, expected_message)
+    let dispatcher2 = dispatcher1.clone();
+    let expected_message2 = Envelope::new(Counter(2));
+    dispatcher2.try_enqueue(expected_message2.clone()).unwrap();
+
+    let mailbox2 = mailbox1.clone();
+
+    let received_message1 = mailbox2.try_dequeue().unwrap_or(Envelope::new(Counter(0)));
+    assert_eq!(received_message1, expected_message1);
+
+    let received_message2 = mailbox2.try_dequeue().unwrap_or(Envelope::new(Counter(0)));
+    assert_eq!(received_message2, expected_message2)
   }
 }
