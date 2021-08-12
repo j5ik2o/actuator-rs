@@ -1,8 +1,14 @@
-use crate::kernel::{Envelope, Message};
+use std::sync::{Arc, Mutex};
 use std::sync::mpsc::Receiver;
 
-pub struct QueueReader<Msg: Message> {
-  rx: Receiver<Envelope<Msg>>,
+use crate::kernel::{Envelope, Message};
+
+pub struct QueueReader<M: Message> {
+  inner: Mutex<QueueReaderInner<M>>
+}
+
+struct QueueReaderInner<M: Message> {
+  rx: Receiver<Envelope<M>>,
 }
 
 pub struct QueueEmpty;
@@ -10,19 +16,22 @@ pub type DequeueResult<Msg> = Result<Msg, QueueEmpty>;
 
 impl<Msg: Message> QueueReader<Msg> {
   pub fn new(rx: Receiver<Envelope<Msg>>) -> Self {
-    Self { rx }
+    Self { inner: Mutex::new(QueueReaderInner { rx }) }
   }
 
   pub fn dequeue(&self) -> Envelope<Msg> {
-    self.rx.recv().unwrap()
+    let inner = self.inner.lock().unwrap();
+    inner.rx.recv().unwrap()
   }
 
   pub fn try_dequeue(&self) -> DequeueResult<Envelope<Msg>> {
-    self.rx.try_recv().map_err(|_| QueueEmpty)
+    let inner = self.inner.lock().unwrap();
+    inner.rx.try_recv().map_err(|_| QueueEmpty)
   }
 
   pub fn non_empty(&self) -> bool {
-    match self.rx.try_recv() {
+    let inner = self.inner.lock().unwrap();
+    match inner.rx.try_recv() {
       Ok(_) => true,
       Err(_) => false,
     }
