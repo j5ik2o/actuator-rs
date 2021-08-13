@@ -28,7 +28,6 @@ impl<M: Message> QueueWriterInMPSC<M> {
 }
 
 impl<M: Message> QueueWriter<M> for QueueWriterInMPSC<M> {
-
   fn try_enqueue(&self, msg: Envelope<M>) -> Result<()> {
     match self.tx.send(msg) {
       Ok(_) => Ok(()),

@@ -44,7 +44,6 @@ impl<M: Message> QueueReaderInMPSC<M> {
 }
 
 impl<M: Message> QueueReader<M> for QueueReaderInMPSC<M> {
-
   fn dequeue(&self) -> Envelope<M> {
     let mut inner = self.inner.lock().unwrap();
     if let Some(item) = inner.next_item.take() {

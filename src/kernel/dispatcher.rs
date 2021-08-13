@@ -1,9 +1,6 @@
-
-
 use crate::kernel::{Envelope, Message, MailboxSender};
 
 use crate::actor::ExtendedCell;
-
 
 pub struct Dispatcher<M: Message> {
   msg: M,

@@ -230,12 +230,14 @@ impl<M: Message> Mailbox<M> {
 
 #[derive(Clone)]
 pub struct MailboxSender<M: Message> {
-  queue: Arc<dyn QueueWriter<M>>
+  queue: Arc<dyn QueueWriter<M>>,
 }
 
 impl<M: Message> MailboxSender<M> {
   pub fn new(queue: impl QueueWriter<M> + 'static) -> Self {
-    Self { queue: Arc::from(queue) }
+    Self {
+      queue: Arc::from(queue),
+    }
   }
 
   pub fn try_enqueue(&self, _cell: ExtendedCell<M>, msg: Envelope<M>) -> Result<()> {
