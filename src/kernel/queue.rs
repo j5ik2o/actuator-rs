@@ -9,10 +9,10 @@ use crate::kernel::{Envelope, Message};
 mod queue_reader;
 mod queue_writer;
 
-pub(crate) fn new_queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
+pub(crate) fn new_queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReaderInMPSC<Msg>) {
   let (tx, rx) = channel::<Envelope<Msg>>();
   let qw = QueueWriter::new(tx);
-  let qr = QueueReader::new(rx);
+  let qr = QueueReaderInMPSC::new(rx);
   (qw, qr)
 }
 

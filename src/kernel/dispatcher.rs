@@ -1,23 +1,22 @@
 use anyhow::Result;
 
-use crate::kernel::{Envelope, Message};
+use crate::kernel::{Envelope, Message, MailboxSender};
 use crate::kernel::queue::QueueWriter;
+use crate::actor::ExtendedCell;
+use env_logger::Env;
 
-#[derive(Clone)]
 pub struct Dispatcher<M: Message> {
-  queue: QueueWriter<M>,
+  msg: M,
 }
 
 impl<M: Message> Dispatcher<M> {
-  pub fn new(queue: QueueWriter<M>) -> Self {
-    Self { queue }
-  }
+  fn register_for_execution(&self, mbox: MailboxSender<M>) {}
 
-  pub fn try_enqueue(&self, msg: Envelope<M>) -> Result<()> {
-    self.queue.try_enqueue(msg)
+  pub fn dispatch(&self, receiver: ExtendedCell<M>, invocation: Envelope<M>) {
+    let mbox = receiver.mailbox;
+    mbox
+      .try_enqueue(ExtendedCell::default(), invocation)
+      .unwrap();
+    self.register_for_execution(mbox);
   }
 }
-
-unsafe impl<M: Message> Send for Dispatcher<M> {}
-
-unsafe impl<M: Message> Sync for Dispatcher<M> {}

@@ -7,6 +7,8 @@ mod actor_uri;
 mod context;
 mod extended_cell;
 
+pub use extended_cell::*;
+
 pub trait Actor: Send + Sync + 'static {
   type Msg: Message;
 

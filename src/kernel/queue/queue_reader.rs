@@ -6,7 +6,7 @@ use thiserror::Error;
 
 use crate::kernel::{Envelope, Message};
 
-pub struct QueueReader<M: Message> {
+pub struct QueueReaderInMPSC<M: Message> {
   inner: Mutex<QueueReaderInner<M>>,
 }
 
@@ -21,7 +21,7 @@ pub enum DequeueError {
   Disconnected,
 }
 
-impl<M: Message> QueueReader<M> {
+impl<M: Message> QueueReaderInMPSC<M> {
   pub fn new(rx: Receiver<Envelope<M>>) -> Self {
     Self {
       inner: Mutex::new(QueueReaderInner {
@@ -38,6 +38,10 @@ impl<M: Message> QueueReader<M> {
     } else {
       inner.rx.recv().unwrap()
     }
+  }
+
+  pub fn dequeue_opt(&self) -> Option<Envelope<M>> {
+    self.try_dequeue().unwrap()
   }
 
   pub fn try_dequeue(&self) -> Result<Option<Envelope<M>>> {
@@ -68,5 +72,9 @@ impl<M: Message> QueueReader<M> {
 
   pub fn is_empty(&self) -> bool {
     !self.non_empty()
+  }
+
+  pub fn number_of_messages(&self) -> usize {
+    0
   }
 }

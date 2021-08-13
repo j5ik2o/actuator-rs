@@ -4,6 +4,12 @@ use std::sync::Arc;
 
 pub struct ActorPath(Arc<str>);
 
+impl Default for ActorPath {
+  fn default() -> Self {
+    Self(Arc::from(""))
+  }
+}
+
 impl ActorPath {
   pub fn new(path: &str) -> Self {
     ActorPath(Arc::from(path))

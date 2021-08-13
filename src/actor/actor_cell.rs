@@ -11,6 +11,12 @@ struct ActorCellInner {
   uri: ActorUri,
 }
 
+impl Default for ActorCell {
+  fn default() -> Self {
+    ActorCell::new(ActorUri::default())
+  }
+}
+
 impl ActorCell {
   pub fn new(uri: ActorUri) -> Self {
     Self {
