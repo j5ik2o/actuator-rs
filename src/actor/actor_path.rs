@@ -1,6 +1,6 @@
-use std::sync::Arc;
-use std::hash::{Hash, Hasher};
 use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::sync::Arc;
 
 pub struct ActorPath(Arc<str>);
 

@@ -1,5 +1,5 @@
-use crate::kernel::{Message, Envelope};
 use crate::actor::extended_cell::ExtendedCell;
+use crate::kernel::{Envelope, Message};
 
 #[derive(Clone)]
 pub struct ActorRef<M: Message> {

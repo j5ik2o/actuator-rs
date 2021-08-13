@@ -1,7 +1,8 @@
-use std::sync::Arc;
-use crate::actor::actor_path::ActorPath;
-use std::hash::{Hash, Hasher};
 use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::sync::Arc;
+
+use crate::actor::actor_path::ActorPath;
 
 #[derive(Clone)]
 pub struct ActorUri {

@@ -1,5 +1,6 @@
-use super::actor_uri::ActorUri;
 use std::sync::Arc;
+
+use super::actor_uri::ActorUri;
 
 #[derive(Clone)]
 pub struct ActorCell {

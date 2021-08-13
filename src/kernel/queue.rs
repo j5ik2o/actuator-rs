@@ -1,11 +1,13 @@
+use std::sync::mpsc::*;
+
+pub use queue_reader::*;
+pub use queue_writer::*;
+
+use crate::kernel::{Envelope, Message};
+
 #[allow(dead_code)]
 mod queue_reader;
 mod queue_writer;
-
-use crate::kernel::{Envelope, Message};
-pub use queue_reader::*;
-pub use queue_writer::*;
-use std::sync::mpsc::*;
 
 pub(crate) fn new_queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReader<Msg>) {
   let (tx, rx) = channel::<Envelope<Msg>>();

@@ -1,13 +1,14 @@
+use std::fmt::{Debug, Formatter};
+
+pub use dispatcher::Dispatcher;
+pub use mailbox::Mailbox;
+use queue::new_queue;
+
 #[allow(dead_code)]
 mod actor_cell;
 mod dispatcher;
 mod mailbox;
 mod queue;
-
-pub use dispatcher::Dispatcher;
-pub use mailbox::Mailbox;
-use queue::new_queue;
-use std::fmt::{Debug, Formatter};
 
 pub trait Message: Debug + Clone + Send + Sync + 'static + PartialEq {}
 
