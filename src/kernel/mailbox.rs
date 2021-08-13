@@ -1,8 +1,11 @@
+use std::ops::Deref;
+use std::sync::{Arc, Mutex};
+
+use anyhow::Result;
+
+use crate::kernel::{Envelope, Message};
 use crate::kernel::dispatcher::Dispatcher;
 use crate::kernel::queue::*;
-use crate::kernel::{Envelope, Message};
-use std::sync::{Arc, Mutex};
-use std::ops::Deref;
 
 pub enum MailboxStatus {
   Open,
@@ -51,7 +54,7 @@ impl<M: Message> Mailbox<M> {
     }
   }
 
-  pub fn try_dequeue(&mut self) -> Option<DequeueResult<Envelope<M>>> {
+  pub fn try_dequeue(&mut self) -> Option<Result<Option<Envelope<M>>>> {
     let mut inner = self.inner.lock().unwrap();
     if inner.count < inner.limit {
       inner.count += 1;

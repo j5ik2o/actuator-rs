@@ -21,8 +21,6 @@ pub enum DequeueError {
   Disconnected,
 }
 
-pub type DequeueResult<M> = Result<Option<M>>;
-
 impl<M: Message> QueueReader<M> {
   pub fn new(rx: Receiver<Envelope<M>>) -> Self {
     Self {
@@ -42,7 +40,7 @@ impl<M: Message> QueueReader<M> {
     }
   }
 
-  pub fn try_dequeue(&self) -> DequeueResult<Envelope<M>> {
+  pub fn try_dequeue(&self) -> Result<Option<Envelope<M>>> {
     let mut inner = self.inner.lock().unwrap();
     if let Some(item) = inner.next_item.take() {
       Ok(Some(item))
