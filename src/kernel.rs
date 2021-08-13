@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug};
 
 pub use dispatcher::Dispatcher;
 pub use mailbox::Mailbox;

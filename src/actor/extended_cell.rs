@@ -1,5 +1,5 @@
 use crate::actor::actor_cell::ActorCell;
-use crate::kernel::{Dispatcher, Envelope, Message};
+use crate::kernel::{Dispatcher, Message};
 
 #[derive(Clone)]
 pub struct ExtendedCell<M: Message> {

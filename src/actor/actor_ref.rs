@@ -12,7 +12,7 @@ impl<M: Message> ActorRef<M> {
   }
 
   pub fn send_message(&self, message: M) {
-    let envelope = Envelope::new(message);
+    let _envelope = Envelope::new(message);
     // let _ = self.cell.send_message(envelope);
   }
 }

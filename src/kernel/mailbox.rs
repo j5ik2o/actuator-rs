@@ -1,10 +1,9 @@
-use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
 
 use crate::kernel::{Envelope, Message};
-use crate::kernel::dispatcher::Dispatcher;
+
 use crate::kernel::queue::*;
 
 pub enum MailboxStatus {
