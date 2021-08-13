@@ -1,6 +1,9 @@
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{Receiver, TryRecvError};
 
+use anyhow::Result;
+use thiserror::Error;
+
 use crate::kernel::{Envelope, Message};
 
 pub struct QueueReader<M: Message> {
@@ -11,10 +14,14 @@ struct QueueReaderInner<M: Message> {
   rx: Receiver<Envelope<M>>,
   next_item: Option<Envelope<M>>,
 }
+
+#[derive(Debug, Error)]
 pub enum DequeueError {
+  #[error("disconnected")]
   Disconnected,
 }
-pub type DequeueResult<M> = Result<Option<M>, DequeueError>;
+
+pub type DequeueResult<M> = Result<Option<M>>;
 
 impl<M: Message> QueueReader<M> {
   pub fn new(rx: Receiver<Envelope<M>>) -> Self {
@@ -43,7 +50,7 @@ impl<M: Message> QueueReader<M> {
       match inner.rx.try_recv() {
         Ok(e) => Ok(Some(e)),
         Err(TryRecvError::Empty) => Ok(None),
-        Err(TryRecvError::Disconnected) => Err(DequeueError::Disconnected),
+        Err(TryRecvError::Disconnected) => Err(DequeueError::Disconnected)?,
       }
     }
   }

@@ -7,9 +7,9 @@ mod queue;
 pub use dispatcher::Dispatcher;
 pub use mailbox::Mailbox;
 use queue::new_queue;
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
 
-pub trait Message: Debug + Clone + Send + 'static + PartialEq {}
+pub trait Message: Debug + Clone + Send + Sync + 'static + PartialEq {}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Envelope<M: Message> {

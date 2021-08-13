@@ -1,28 +1,31 @@
 use crate::kernel::{Envelope, Message};
 use std::sync::mpsc::Sender;
 
+use anyhow::Result;
+use thiserror::Error;
+use std::fmt::{Debug, Display};
+
 #[derive(Clone)]
 pub struct QueueWriter<M: Message> {
-  tx: Sender<Envelope<M>>,
+    tx: Sender<Envelope<M>>,
 }
 
-#[derive(Clone, Debug)]
-pub struct EnqueueError<A> {
-  pub msg: A,
+#[derive(Clone, Debug, Error)]
+pub enum EnqueueError<A: Debug> {
+    #[error("send error: {0:?}")]
+    SendError(A),
 }
-
-pub type EnqueueResult<M> = Result<(), EnqueueError<Envelope<M>>>;
 
 impl<M: Message> QueueWriter<M> {
-  pub fn new(tx: Sender<Envelope<M>>) -> Self {
-    Self { tx }
-  }
+    pub fn new(tx: Sender<Envelope<M>>) -> Self {
+        Self { tx }
+    }
 
-  pub fn try_enqueue(&self, msg: Envelope<M>) -> EnqueueResult<M> {
-    self
-      .tx
-      .send(msg)
-      .map(|_| ())
-      .map_err(|e| EnqueueError { msg: e.0 })
-  }
+    pub fn try_enqueue(&self, msg: Envelope<M>) -> Result<()> {
+        match self.tx.send(msg) {
+            Ok(_) => Ok(()),
+            Err(e) =>
+                Err(EnqueueError::SendError(e.0))?
+        }
+    }
 }

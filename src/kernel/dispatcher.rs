@@ -1,5 +1,7 @@
-use crate::kernel::queue::{EnqueueResult, QueueWriter};
+use anyhow::Result;
+
 use crate::kernel::{Envelope, Message};
+use crate::kernel::queue::QueueWriter;
 
 #[derive(Clone)]
 pub struct Dispatcher<M: Message> {
@@ -11,7 +13,7 @@ impl<M: Message> Dispatcher<M> {
     Self { queue }
   }
 
-  pub fn try_enqueue(&self, msg: Envelope<M>) -> EnqueueResult<M> {
+  pub fn try_enqueue(&self, msg: Envelope<M>) -> Result<()> {
     self.queue.try_enqueue(msg)
   }
 }
