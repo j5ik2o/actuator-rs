@@ -166,7 +166,7 @@ impl<M: Message> Mailbox<M> {
     }
   }
 
-  fn process_mailbox(&mut self, left: u32, dead_line_ns: u64) {
+  fn process_mailbox(&mut self, _left: u32, _dead_line_ns: u64) {
     if self.should_process_message() {
       let next = self.dequeue_opt();
       if next.is_some() {}
@@ -179,17 +179,17 @@ impl<M: Message> Mailbox<M> {
   }
 
   pub fn dequeue(&mut self) -> Envelope<M> {
-    let mut inner = self.inner.lock().unwrap();
+    let inner = self.inner.lock().unwrap();
     inner.queue.dequeue()
   }
 
   pub fn dequeue_opt(&mut self) -> Option<Envelope<M>> {
-    let mut inner = self.inner.lock().unwrap();
+    let inner = self.inner.lock().unwrap();
     inner.queue.dequeue_opt()
   }
 
   pub fn try_dequeue(&mut self) -> Result<Option<Envelope<M>>> {
-    let mut inner = self.inner.lock().unwrap();
+    let inner = self.inner.lock().unwrap();
     inner.queue.try_dequeue()
   }
 
