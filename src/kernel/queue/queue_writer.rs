@@ -6,8 +6,12 @@ use thiserror::Error;
 
 use crate::kernel::{Envelope, Message};
 
+pub trait QueueWriter<M: Message> {
+  fn try_enqueue(&self, msg: Envelope<M>) -> Result<()>;
+}
+
 #[derive(Clone)]
-pub struct QueueWriter<M: Message> {
+pub struct QueueWriterInMPSC<M: Message> {
   tx: Sender<Envelope<M>>,
 }
 
@@ -17,12 +21,15 @@ pub enum EnqueueError<A: Debug> {
   SendError(A),
 }
 
-impl<M: Message> QueueWriter<M> {
+impl<M: Message> QueueWriterInMPSC<M> {
   pub fn new(tx: Sender<Envelope<M>>) -> Self {
     Self { tx }
   }
+}
 
-  pub fn try_enqueue(&self, msg: Envelope<M>) -> Result<()> {
+impl<M: Message> QueueWriter<M> for QueueWriterInMPSC<M> {
+
+  fn try_enqueue(&self, msg: Envelope<M>) -> Result<()> {
     match self.tx.send(msg) {
       Ok(_) => Ok(()),
       Err(e) => Err(EnqueueError::SendError(e.0))?,

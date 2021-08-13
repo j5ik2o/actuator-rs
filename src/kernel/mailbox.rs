@@ -27,7 +27,7 @@ pub struct Mailbox<M: Message> {
 }
 
 struct MailboxInner<M: Message> {
-  queue: QueueReaderInMPSC<M>,
+  queue: Arc<dyn QueueReader<M>>,
   actor: Option<ExtendedCell<M>>,
   current_status: u32,
   limit: u32,
@@ -35,10 +35,10 @@ struct MailboxInner<M: Message> {
 }
 
 impl<M: Message> Mailbox<M> {
-  pub fn new(limit: u32, queue: QueueReaderInMPSC<M>) -> Self {
+  pub fn new(limit: u32, queue: impl QueueReader<M> + 'static) -> Self {
     Self {
       inner: Arc::from(Mutex::new(MailboxInner {
-        queue,
+        queue: Arc::from(queue),
         actor: None,
         current_status: MailboxStatus::Open as u32,
         limit,
@@ -230,19 +230,19 @@ impl<M: Message> Mailbox<M> {
 
 #[derive(Clone)]
 pub struct MailboxSender<M: Message> {
-  queue: QueueWriter<M>,
+  queue: Arc<dyn QueueWriter<M>>
 }
 
 impl<M: Message> MailboxSender<M> {
-  pub fn new(queue: QueueWriter<M>) -> Self {
-    Self { queue }
+  pub fn new(queue: impl QueueWriter<M> + 'static) -> Self {
+    Self { queue: Arc::from(queue) }
   }
 
   pub fn try_enqueue(&self, _cell: ExtendedCell<M>, msg: Envelope<M>) -> Result<()> {
     self.queue.try_enqueue(msg)
   }
 }
-
-unsafe impl<M: Message> Send for MailboxSender<M> {}
-
-unsafe impl<M: Message> Sync for MailboxSender<M> {}
+//
+// unsafe impl<M: Message> Send for MailboxSender<M> {}
+//
+// unsafe impl<M: Message> Sync for MailboxSender<M> {}

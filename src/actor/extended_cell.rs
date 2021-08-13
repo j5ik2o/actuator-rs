@@ -1,5 +1,6 @@
 use crate::actor::actor_cell::ActorCell;
-use crate::kernel::{Message, MailboxSender, new_mailbox};
+use crate::kernel::{MailboxSender, Message, new_mailbox};
+use crate::kernel::QueueWriter;
 
 #[derive(Clone)]
 pub struct ExtendedCell<M: Message> {

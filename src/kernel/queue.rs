@@ -5,13 +5,12 @@ pub use queue_writer::*;
 
 use crate::kernel::{Envelope, Message};
 
-#[allow(dead_code)]
 mod queue_reader;
 mod queue_writer;
 
-pub(crate) fn new_queue<Msg: Message>() -> (QueueWriter<Msg>, QueueReaderInMPSC<Msg>) {
-  let (tx, rx) = channel::<Envelope<Msg>>();
-  let qw = QueueWriter::new(tx);
+pub(crate) fn new_queue<M: Message>() -> (impl QueueWriter<M>, impl QueueReader<M>) {
+  let (tx, rx) = channel::<Envelope<M>>();
+  let qw = QueueWriterInMPSC::new(tx);
   let qr = QueueReaderInMPSC::new(rx);
   (qw, qr)
 }

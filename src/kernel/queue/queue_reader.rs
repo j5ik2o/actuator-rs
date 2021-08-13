@@ -6,6 +6,17 @@ use thiserror::Error;
 
 use crate::kernel::{Envelope, Message};
 
+pub trait QueueReader<M: Message> {
+  fn dequeue(&self) -> Envelope<M>;
+  fn dequeue_opt(&self) -> Option<Envelope<M>> {
+    self.try_dequeue().unwrap()
+  }
+  fn try_dequeue(&self) -> Result<Option<Envelope<M>>>;
+  fn non_empty(&self) -> bool;
+  fn is_empty(&self) -> bool;
+  fn number_of_messages(&self) -> usize;
+}
+
 pub struct QueueReaderInMPSC<M: Message> {
   inner: Mutex<QueueReaderInner<M>>,
 }
@@ -30,8 +41,11 @@ impl<M: Message> QueueReaderInMPSC<M> {
       }),
     }
   }
+}
 
-  pub fn dequeue(&self) -> Envelope<M> {
+impl<M: Message> QueueReader<M> for QueueReaderInMPSC<M> {
+
+  fn dequeue(&self) -> Envelope<M> {
     let mut inner = self.inner.lock().unwrap();
     if let Some(item) = inner.next_item.take() {
       item
@@ -40,11 +54,7 @@ impl<M: Message> QueueReaderInMPSC<M> {
     }
   }
 
-  pub fn dequeue_opt(&self) -> Option<Envelope<M>> {
-    self.try_dequeue().unwrap()
-  }
-
-  pub fn try_dequeue(&self) -> Result<Option<Envelope<M>>> {
+  fn try_dequeue(&self) -> Result<Option<Envelope<M>>> {
     let mut inner = self.inner.lock().unwrap();
     if let Some(item) = inner.next_item.take() {
       Ok(Some(item))
@@ -57,7 +67,7 @@ impl<M: Message> QueueReaderInMPSC<M> {
     }
   }
 
-  pub fn non_empty(&self) -> bool {
+  fn non_empty(&self) -> bool {
     let mut inner = self.inner.lock().unwrap();
     inner.next_item.is_some() || {
       match inner.rx.try_recv() {
@@ -70,11 +80,11 @@ impl<M: Message> QueueReaderInMPSC<M> {
     }
   }
 
-  pub fn is_empty(&self) -> bool {
+  fn is_empty(&self) -> bool {
     !self.non_empty()
   }
 
-  pub fn number_of_messages(&self) -> usize {
+  fn number_of_messages(&self) -> usize {
     0
   }
 }
