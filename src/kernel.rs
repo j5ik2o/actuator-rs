@@ -22,11 +22,10 @@ impl<M: Message> Envelope<M> {
   }
 }
 
-pub fn new_mailbox<M: Message>(limit: u32) -> (MailboxSender<M>, Mailbox<M>) {
+pub fn new_mailbox<M: Message>(limit: u32) -> Mailbox<M> {
   let (qw, qr) = new_queue();
-  let dispatcher = MailboxSender::new(qw);
-  let mailbox = Mailbox::new(limit, qr);
-  (dispatcher, mailbox)
+  let mailbox = Mailbox::new(limit, qr, qw);
+  mailbox
 }
 
 #[cfg(test)]
@@ -41,7 +40,8 @@ mod tests {
 
   #[test]
   fn test_new_mailbox() {
-    let (dispatcher1, mailbox1) = new_mailbox(2);
+    let mailbox1 = new_mailbox(2);
+    let dispatcher1 = mailbox1.new_sender();
     let expected_message1 = Envelope::new(Counter(1));
 
     dispatcher1

@@ -10,10 +10,10 @@ impl<M: Message> Dispatcher<M> {
   fn register_for_execution(&self, _mbox: MailboxSender<M>) {}
 
   pub fn dispatch(&self, receiver: ExtendedCell<M>, invocation: Envelope<M>) {
-    let mbox = receiver.mailbox;
-    mbox
-      .try_enqueue(ExtendedCell::default(), invocation)
+    let mailbox_sender = receiver.mailbox_sender.clone();
+    mailbox_sender
+      .try_enqueue(receiver.clone(), invocation)
       .unwrap();
-    self.register_for_execution(mbox);
+    self.register_for_execution(mailbox_sender);
   }
 }

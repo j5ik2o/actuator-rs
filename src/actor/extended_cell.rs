@@ -4,29 +4,23 @@ use crate::kernel::{MailboxSender, Message, new_mailbox};
 #[derive(Clone)]
 pub struct ExtendedCell<M: Message> {
   cell: ActorCell,
-  pub(crate) mailbox: MailboxSender<M>,
+  pub(crate) mailbox_sender: MailboxSender<M>,
 }
-
-#[derive(Clone)]
-pub struct MsgError<T> {
-  pub msg: T,
-}
-
-pub type MsgResult<T> = Result<(), MsgError<T>>;
 
 impl<M: Message> Default for ExtendedCell<M> {
   fn default() -> Self {
-    let (mailbox, _) = new_mailbox(1);
+    let mailbox = new_mailbox(1);
+    let mailbox_sender = mailbox.new_sender();
     Self {
       cell: ActorCell::default(),
-      mailbox,
+      mailbox_sender: mailbox_sender,
     }
   }
 }
 
 impl<M: Message> ExtendedCell<M> {
   pub fn new(cell: ActorCell, mailbox: MailboxSender<M>) -> Self {
-    Self { cell, mailbox }
+    Self { cell, mailbox_sender: mailbox }
   }
 
   // pub(crate) fn send_msg(&self, msg: Envelope<M>) -> MsgResult<Envelope<M>> {
