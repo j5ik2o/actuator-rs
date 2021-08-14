@@ -20,7 +20,10 @@ impl<M: Message> Default for ExtendedCell<M> {
 
 impl<M: Message> ExtendedCell<M> {
   pub fn new(cell: ActorCell, mailbox: MailboxSender<M>) -> Self {
-    Self { cell, mailbox_sender: mailbox }
+    Self {
+      cell,
+      mailbox_sender: mailbox,
+    }
   }
 
   // pub(crate) fn send_msg(&self, msg: Envelope<M>) -> MsgResult<Envelope<M>> {
