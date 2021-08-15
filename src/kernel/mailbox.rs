@@ -208,7 +208,7 @@ impl<M: Message> Mailbox<M> {
     has_message_hint: bool,
     has_system_message_hint: bool,
   ) -> bool {
-    let mut inner = self.inner.lock().unwrap();
+    let inner = self.inner.lock().unwrap();
     match inner.current_status {
       cs if cs == MailboxStatus::Open as u32 || cs == MailboxStatus::Scheduled as u32 => {
         has_message_hint || has_system_message_hint || self.has_messages()
