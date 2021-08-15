@@ -97,7 +97,7 @@ impl<M: Message> Mailbox<M> {
   }
 
   pub fn is_scheduled(&self) -> bool {
-    let mut inner = self.inner.lock().unwrap();
+    let inner = self.inner.lock().unwrap();
     (inner.current_status & MailboxStatus::Scheduled as u32) != 0
   }
 
