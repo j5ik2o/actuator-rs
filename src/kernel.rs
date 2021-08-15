@@ -4,6 +4,9 @@ use queue::new_queue;
 mod actor_cell;
 mod dispatcher;
 mod mailbox;
+mod mailbox_status;
+#[cfg(test)]
+mod mailbox_test;
 mod queue;
 
 pub use queue::*;
