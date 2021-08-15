@@ -1,6 +1,5 @@
 use crate::kernel::{new_mailbox, Message};
 
-
 use std::{env, panic};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -55,18 +54,15 @@ fn setup() {
   logger::try_init();
 }
 
-fn teardown() {
-
-}
+fn teardown() {}
 
 fn run_test<T>(test: T) -> ()
-  where T: FnOnce() -> () + panic::UnwindSafe
+where
+  T: FnOnce() -> () + panic::UnwindSafe,
 {
   setup();
 
-  let result = panic::catch_unwind(|| {
-    test()
-  });
+  let result = panic::catch_unwind(|| test());
 
   teardown();
 

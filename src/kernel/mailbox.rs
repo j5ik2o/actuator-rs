@@ -1,4 +1,3 @@
-
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use anyhow::Result;
@@ -82,7 +81,11 @@ impl<M: Message> Mailbox<M> {
 
   pub fn suspend_count(&self) -> u32 {
     let inner = self.inner.lock().unwrap();
-    debug!("current_status = {}, suspend_mask = {}", inner.current_status, MailboxStatus::SuspendMask as u32);
+    debug!(
+      "current_status = {}, suspend_mask = {}",
+      inner.current_status,
+      MailboxStatus::SuspendMask as u32
+    );
     inner.current_status / MailboxStatus::SuspendUnit as u32
   }
 
@@ -102,7 +105,10 @@ impl<M: Message> Mailbox<M> {
   }
 
   fn _update_status(inner: &mut MutexGuard<MailboxInner<M>>, old: u32, new: u32) -> bool {
-    debug!("current_status = {}, old = {}, new = {}", inner.current_status, old, new);
+    debug!(
+      "current_status = {}, old = {}, new = {}",
+      inner.current_status, old, new
+    );
     if inner.current_status == old {
       inner.current_status = new;
       true
@@ -145,7 +151,12 @@ impl<M: Message> Mailbox<M> {
       let s = inner.current_status;
       if Self::_update_status(&mut inner, s, s + MailboxStatus::SuspendUnit as u32) {
         let result = s < MailboxStatus::SuspendUnit as u32;
-        debug!("suspend: s = {}, suspend_unit = {}, result = {}", s, MailboxStatus::SuspendUnit as u32, result);
+        debug!(
+          "suspend: s = {}, suspend_unit = {}, result = {}",
+          s,
+          MailboxStatus::SuspendUnit as u32,
+          result
+        );
         return result;
       }
     }
