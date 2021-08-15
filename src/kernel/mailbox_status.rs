@@ -18,5 +18,5 @@ pub enum MailboxStatus {
   ShouldScheduleMask = 3,
   ShouldNotProcessMask = !2,
   SuspendMask = !3,
-  SuspendUnit = 6,
+  SuspendUnit = 4,
 }

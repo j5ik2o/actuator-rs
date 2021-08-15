@@ -70,7 +70,7 @@ impl<M: Message> Mailbox<M> {
     MailboxSender::from_arc(new_queue_writer)
   }
 
-  pub fn set_actor(&self, cell: ExtendedCell<M>) {
+  pub fn set_actor(&mut self, cell: ExtendedCell<M>) {
     let mut inner = self.inner.lock().unwrap();
     inner.actor = Some(cell)
   }
@@ -82,7 +82,8 @@ impl<M: Message> Mailbox<M> {
 
   pub fn suspend_count(&self) -> u32 {
     let inner = self.inner.lock().unwrap();
-    inner.current_status / MailboxStatus::SuspendMask as u32
+    debug!("current_status = {}, suspend_mask = {}", inner.current_status, MailboxStatus::SuspendMask as u32);
+    inner.current_status / MailboxStatus::SuspendUnit as u32
   }
 
   pub fn is_suspend(&self) -> bool {
@@ -92,8 +93,7 @@ impl<M: Message> Mailbox<M> {
 
   pub fn is_closed(&self) -> bool {
     let inner = self.inner.lock().unwrap();
-    let current_status = MailboxStatus::try_from(inner.current_status).unwrap();
-    current_status == MailboxStatus::Closed
+    inner.current_status == MailboxStatus::Closed as u32
   }
 
   pub fn is_scheduled(&self) -> bool {
@@ -101,7 +101,8 @@ impl<M: Message> Mailbox<M> {
     (inner.current_status & MailboxStatus::Scheduled as u32) != 0
   }
 
-  fn update_status(inner: &mut MutexGuard<MailboxInner<M>>, old: u32, new: u32) -> bool {
+  fn _update_status(inner: &mut MutexGuard<MailboxInner<M>>, old: u32, new: u32) -> bool {
+    debug!("current_status = {}, old = {}, new = {}", inner.current_status, old, new);
     if inner.current_status == old {
       inner.current_status = new;
       true
@@ -110,16 +111,15 @@ impl<M: Message> Mailbox<M> {
     }
   }
 
-  fn set_status(inner: &mut MutexGuard<MailboxInner<M>>, value: u32) {
+  fn _set_status(inner: &mut MutexGuard<MailboxInner<M>>, value: u32) {
     inner.current_status = value;
   }
 
   pub fn resume(&self) -> bool {
     loop {
       let mut inner = self.inner.lock().unwrap();
-      let current_status = MailboxStatus::try_from(inner.current_status).unwrap();
-      if current_status == MailboxStatus::Closed {
-        Self::set_status(&mut inner, MailboxStatus::Closed as u32);
+      if inner.current_status == MailboxStatus::Closed as u32 {
+        Self::_set_status(&mut inner, MailboxStatus::Closed as u32);
         return false;
       }
       let s = inner.current_status;
@@ -128,7 +128,7 @@ impl<M: Message> Mailbox<M> {
       } else {
         s - MailboxStatus::SuspendUnit as u32
       };
-      if Self::update_status(&mut inner, s, next) {
+      if Self::_update_status(&mut inner, s, next) {
         return next < MailboxStatus::SuspendUnit as u32;
       }
     }
@@ -137,14 +137,16 @@ impl<M: Message> Mailbox<M> {
   pub fn suspend(&self) -> bool {
     loop {
       let mut inner = self.inner.lock().unwrap();
-      let current_status = MailboxStatus::try_from(inner.current_status).unwrap();
-      if current_status == MailboxStatus::Closed {
-        Self::set_status(&mut inner, MailboxStatus::Closed as u32);
+      if inner.current_status == MailboxStatus::Closed as u32 {
+        Self::_set_status(&mut inner, MailboxStatus::Closed as u32);
+        debug!("Closed: suspend: false");
         return false;
       }
       let s = inner.current_status;
-      if Self::update_status(&mut inner, s, s + MailboxStatus::SuspendUnit as u32) {
-        return s < MailboxStatus::SuspendUnit as u32;
+      if Self::_update_status(&mut inner, s, s + MailboxStatus::SuspendUnit as u32) {
+        let result = s < MailboxStatus::SuspendUnit as u32;
+        debug!("suspend: s = {}, suspend_unit = {}, result = {}", s, MailboxStatus::SuspendUnit as u32, result);
+        return result;
       }
     }
   }
@@ -152,36 +154,39 @@ impl<M: Message> Mailbox<M> {
   pub fn become_closed(&self) -> bool {
     loop {
       let mut inner = self.inner.lock().unwrap();
-      let current_status = MailboxStatus::try_from(inner.current_status).unwrap();
-      if current_status == MailboxStatus::Closed {
-        Self::set_status(&mut inner, MailboxStatus::Closed as u32);
+      if inner.current_status == MailboxStatus::Closed as u32 {
+        Self::_set_status(&mut inner, MailboxStatus::Closed as u32);
+        debug!("become_closed: false");
         return false;
       }
       let s = inner.current_status;
-      if Self::update_status(&mut inner, s, MailboxStatus::Closed as u32) {
+      if Self::_update_status(&mut inner, s, MailboxStatus::Closed as u32) {
+        debug!("become_closed: true");
         return true;
       }
     }
   }
 
-  pub fn set_as_scheduled(&self) -> bool {
+  pub fn set_as_scheduled(&mut self) -> bool {
     loop {
       let mut inner = self.inner.lock().unwrap();
       let s = inner.current_status;
       if (s & MailboxStatus::ShouldScheduleMask as u32) != MailboxStatus::Open as u32 {
+        debug!("set_as_scheduled: false");
         return false;
       }
-      if Self::update_status(&mut inner, s, s | MailboxStatus::Scheduled as u32) {
+      if Self::_update_status(&mut inner, s, s | MailboxStatus::Scheduled as u32) {
+        debug!("set_as_scheduled: true");
         return true;
       }
     }
   }
 
-  pub fn set_as_idle(&self) -> bool {
+  pub fn set_as_idle(&mut self) -> bool {
     loop {
       let mut inner = self.inner.lock().unwrap();
       let s = inner.current_status;
-      if Self::update_status(&mut inner, s, s & !(MailboxStatus::Scheduled as u32)) {
+      if Self::_update_status(&mut inner, s, s & !(MailboxStatus::Scheduled as u32)) {
         return true;
       }
     }
