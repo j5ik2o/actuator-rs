@@ -203,6 +203,21 @@ impl<M: Message> Mailbox<M> {
     }
   }
 
+  pub fn can_be_scheduled_for_execution(
+    &self,
+    has_message_hint: bool,
+    has_system_message_hint: bool,
+  ) -> bool {
+    let mut inner = self.inner.lock().unwrap();
+    match inner.current_status {
+      cs if cs == MailboxStatus::Open as u32 || cs == MailboxStatus::Scheduled as u32 => {
+        has_message_hint || has_system_message_hint || self.has_messages()
+      }
+      cs if cs == MailboxStatus::Closed as u32 => false,
+      _ => has_system_message_hint || self.has_system_messages(),
+    }
+  }
+
   // TODO:
   fn process_mailbox(&mut self, _left: u32, _dead_line_ns: u64) {
     if self.should_process_message() {
@@ -256,13 +271,14 @@ impl<M: Message> Mailbox<M> {
     }
   }
 
-  pub fn non_empty(&self) -> bool {
+  pub fn has_system_messages(&self) -> bool {
     let inner = self.inner.lock().unwrap();
     inner.queue_reader.non_empty()
   }
 
-  pub fn is_empty(&self) -> bool {
-    !self.non_empty()
+  pub fn has_messages(&self) -> bool {
+    let inner = self.inner.lock().unwrap();
+    inner.queue_reader.non_empty()
   }
 
   pub fn number_of_messages(&self) -> usize {

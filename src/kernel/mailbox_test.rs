@@ -11,9 +11,12 @@ impl Message for Counter {}
 fn test_is_scheduled() {
   run_test(|| {
     let mut mailbox1 = new_mailbox::<Counter>(2);
+    mailbox1.set_as_idle();
     assert!(!mailbox1.is_scheduled());
     mailbox1.set_as_scheduled();
     assert!(mailbox1.is_scheduled());
+    mailbox1.set_as_idle();
+    assert!(!mailbox1.is_scheduled());
   });
 }
 
@@ -41,7 +44,9 @@ fn test_is_suspend() {
     assert_eq!(mailbox1.suspend_count(), 3);
     assert!(mailbox1.is_suspend());
     mailbox1.resume();
+    assert_eq!(mailbox1.suspend_count(), 2);
     mailbox1.resume();
+    assert_eq!(mailbox1.suspend_count(), 1);
     mailbox1.resume();
     assert_eq!(mailbox1.suspend_count(), 0);
     assert!(!mailbox1.is_suspend());
