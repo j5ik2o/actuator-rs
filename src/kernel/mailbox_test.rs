@@ -1,6 +1,6 @@
 use crate::kernel::{new_mailbox, Message};
 
-use log::Level;
+
 use std::{env, panic};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -21,7 +21,7 @@ fn test_is_scheduled() {
 #[test]
 fn test_is_closed() {
   run_test(|| {
-    let mut mailbox1 = new_mailbox::<Counter>(2);
+    let mailbox1 = new_mailbox::<Counter>(2);
     assert!(!mailbox1.is_closed());
     mailbox1.become_closed();
     assert!(mailbox1.is_closed());
@@ -31,7 +31,7 @@ fn test_is_closed() {
 #[test]
 fn test_is_suspend() {
   run_test(|| {
-    let mut mailbox1 = new_mailbox::<Counter>(2);
+    let mailbox1 = new_mailbox::<Counter>(2);
     assert!(!mailbox1.is_suspend());
     assert_eq!(mailbox1.suspend_count(), 0);
     mailbox1.suspend();
@@ -52,7 +52,7 @@ fn test_is_suspend() {
 fn setup() {
   env::set_var("RUST_LOG", "debug");
   // env::set_var("RUST_LOG", "trace");
-  logger::init();
+  logger::try_init();
 }
 
 fn teardown() {
