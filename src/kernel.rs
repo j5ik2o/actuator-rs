@@ -1,7 +1,6 @@
 use std::fmt::{Debug};
 use queue::new_mpsc_queue;
 
-mod actor_cell;
 mod dispatcher;
 mod mailbox;
 mod mailbox_status;
@@ -16,12 +15,12 @@ pub trait Message: Debug + Clone + Send + Sync + 'static + PartialEq {}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Envelope<M: Message> {
-  pub msg: M,
+  pub message: M,
 }
 
 impl<M: Message> Envelope<M> {
   pub fn new(value: M) -> Self {
-    Self { msg: value }
+    Self { message: value }
   }
 }
 

@@ -4,6 +4,7 @@ mod actor_cell;
 mod actor_path;
 mod actor_ref;
 mod actor_uri;
+mod address;
 mod context;
 mod extended_cell;
 

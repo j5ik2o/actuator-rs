@@ -223,7 +223,10 @@ impl<M: Message> Mailbox<M> {
   fn process_mailbox(&mut self, _left: u32, _dead_line_ns: u64) {
     if self.should_process_message() {
       let next = self.dequeue_opt();
-      if next.is_some() {}
+      if next.is_some() {
+        let mut inner = self.inner.lock().unwrap();
+        // inner.actor.invoke(next.unwrap())
+      }
     }
   }
 
