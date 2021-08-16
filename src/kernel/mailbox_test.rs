@@ -23,9 +23,12 @@ fn test_is_scheduled() {
 #[test]
 fn test_is_closed() {
   run_test(|| {
-    let mailbox1 = new_mailbox::<Counter>(2);
+    let mut mailbox1 = new_mailbox::<Counter>(2);
+    mailbox1.set_as_idle();
     assert!(!mailbox1.is_closed());
     mailbox1.become_closed();
+    assert!(mailbox1.is_closed());
+    mailbox1.set_as_idle();
     assert!(mailbox1.is_closed());
   });
 }
@@ -33,7 +36,8 @@ fn test_is_closed() {
 #[test]
 fn test_is_suspend() {
   run_test(|| {
-    let mailbox1 = new_mailbox::<Counter>(2);
+    let mut mailbox1 = new_mailbox::<Counter>(2);
+    mailbox1.set_as_idle();
     assert!(!mailbox1.is_suspend());
     assert_eq!(mailbox1.suspend_count(), 0);
     mailbox1.suspend();
@@ -49,6 +53,8 @@ fn test_is_suspend() {
     assert_eq!(mailbox1.suspend_count(), 1);
     mailbox1.resume();
     assert_eq!(mailbox1.suspend_count(), 0);
+    assert!(!mailbox1.is_suspend());
+    mailbox1.set_as_idle();
     assert!(!mailbox1.is_suspend());
   });
 }
