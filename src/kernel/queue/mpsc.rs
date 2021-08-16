@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use anyhow::Result;
 use thiserror::Error;
 
-use crate::kernel::{Envelope, Message, QueueWriter};
+use crate::kernel::{Envelope, Message, QueueWriter, MessageSize};
 use crate::kernel::QueueReader;
 
 pub struct QueueReaderInMPSC<M: Message> {
@@ -75,8 +75,8 @@ impl<M: Message> QueueReader<M> for QueueReaderInMPSC<M> {
     !self.non_empty()
   }
 
-  fn number_of_messages(&self) -> usize {
-    0
+  fn number_of_messages(&self) -> MessageSize {
+    MessageSize::Limitless
   }
 }
 

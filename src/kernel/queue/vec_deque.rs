@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 use std::collections::VecDeque;
-use crate::kernel::{Message, QueueWriter, Envelope, QueueReader};
+use crate::kernel::{Message, QueueWriter, Envelope, QueueReader, MessageSize};
 
 #[derive(Clone)]
 pub struct QueueInVecQueue<M: Message> {
@@ -35,9 +35,9 @@ impl<M: Message> QueueReader<M> for QueueInVecQueue<M> {
     !inner.queue.is_empty()
   }
 
-  fn number_of_messages(&self) -> usize {
+  fn number_of_messages(&self) -> MessageSize {
     let inner = self.inner.lock().unwrap();
-    inner.queue.len()
+    MessageSize::Limit(inner.queue.len())
   }
 }
 

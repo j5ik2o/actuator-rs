@@ -10,6 +10,11 @@ use crate::kernel::queue::vec_deque::QueueInVecQueue;
 mod mpsc;
 mod vec_deque;
 
+pub enum MessageSize {
+  Limit(usize),
+  Limitless,
+}
+
 pub trait QueueReader<M: Message> {
   fn dequeue(&self) -> Envelope<M>;
   fn dequeue_opt(&self) -> Option<Envelope<M>> {
@@ -20,7 +25,7 @@ pub trait QueueReader<M: Message> {
   fn is_empty(&self) -> bool {
     !self.non_empty()
   }
-  fn number_of_messages(&self) -> usize;
+  fn number_of_messages(&self) -> MessageSize;
 }
 
 pub trait QueueWriter<M: Message> {
@@ -50,11 +55,24 @@ mod tests {
   impl Message for Counter {}
 
   #[test]
-  fn test_new_queue() {
-    let (qw, qr) = new_mpsc_queue();
+  fn test_new_vec_queue() {
+    let (qw, qr) = new_vec_queue();
     let expected_message = Envelope::new(Counter(1));
     qw.try_enqueue(expected_message.clone()).unwrap();
 
+    match qr.number_of_messages() {
+      MessageSize::Limit(n) => assert!(n > 0),
+      MessageSize::Limitless => panic!(),
+    }
+    let received_message = qr.try_dequeue().unwrap_or_default().unwrap();
+    assert_eq!(received_message, expected_message)
+  }
+
+  #[test]
+  fn test_new_mpsc_queue() {
+    let (qw, qr) = new_mpsc_queue();
+    let expected_message = Envelope::new(Counter(1));
+    qw.try_enqueue(expected_message.clone()).unwrap();
     let received_message = qr.try_dequeue().unwrap_or_default().unwrap();
     assert_eq!(received_message, expected_message)
   }

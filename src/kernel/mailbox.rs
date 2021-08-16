@@ -281,7 +281,7 @@ impl<M: Message> Mailbox<M> {
     inner.queue_reader.non_empty()
   }
 
-  pub fn number_of_messages(&self) -> usize {
+  pub fn number_of_messages(&self) -> MessageSize {
     let inner = self.inner.lock().unwrap();
     inner.queue_reader.number_of_messages()
   }
