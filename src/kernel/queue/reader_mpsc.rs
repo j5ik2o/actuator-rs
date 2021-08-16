@@ -1,27 +1,16 @@
-use std::sync::{Mutex};
+use std::sync::Mutex;
 use std::sync::mpsc::{Receiver, TryRecvError};
 
 use anyhow::Result;
 use thiserror::Error;
 
-use crate::kernel::{Envelope, Message};
-
-pub trait QueueReader<M: Message> {
-  fn dequeue(&self) -> Envelope<M>;
-  fn dequeue_opt(&self) -> Option<Envelope<M>> {
-    self.try_dequeue().unwrap()
-  }
-  fn try_dequeue(&self) -> Result<Option<Envelope<M>>>;
-  fn non_empty(&self) -> bool;
-  fn is_empty(&self) -> bool;
-  fn number_of_messages(&self) -> usize;
-}
+use crate::kernel::{Envelope, Message, QueueReader};
 
 pub struct QueueReaderInMPSC<M: Message> {
-  inner: Mutex<QueueReaderInner<M>>,
+  inner: Mutex<QueueReaderInMPSCInner<M>>,
 }
 
-struct QueueReaderInner<M: Message> {
+struct QueueReaderInMPSCInner<M: Message> {
   rx: Receiver<Envelope<M>>,
   next_item: Option<Envelope<M>>,
 }
@@ -35,7 +24,7 @@ pub enum DequeueError {
 impl<M: Message> QueueReaderInMPSC<M> {
   pub fn new(rx: Receiver<Envelope<M>>) -> Self {
     Self {
-      inner: Mutex::new(QueueReaderInner {
+      inner: Mutex::new(QueueReaderInMPSCInner {
         rx,
         next_item: None,
       }),

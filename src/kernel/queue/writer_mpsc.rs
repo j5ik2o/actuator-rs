@@ -4,11 +4,7 @@ use std::sync::mpsc::Sender;
 use anyhow::Result;
 use thiserror::Error;
 
-use crate::kernel::{Envelope, Message};
-
-pub trait QueueWriter<M: Message> {
-  fn try_enqueue(&self, msg: Envelope<M>) -> Result<()>;
-}
+use crate::kernel::{Envelope, Message, QueueWriter};
 
 #[derive(Clone)]
 pub struct QueueWriterInMPSC<M: Message> {

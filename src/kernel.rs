@@ -1,5 +1,5 @@
 use std::fmt::{Debug};
-use queue::new_queue;
+use queue::new_mpsc_queue;
 
 mod actor_cell;
 mod dispatcher;
@@ -26,7 +26,7 @@ impl<M: Message> Envelope<M> {
 }
 
 pub fn new_mailbox<M: Message>(limit: u32) -> Mailbox<M> {
-  let (qw, qr) = new_queue();
+  let (qw, qr) = new_mpsc_queue();
   let mailbox = Mailbox::new(limit, qr, qw);
   mailbox
 }

@@ -1,14 +1,30 @@
 use std::sync::mpsc::*;
 
-pub use queue_reader::*;
-pub use queue_writer::*;
+pub use reader_mpsc::*;
+pub use writer_mpsc::*;
 
 use crate::kernel::{Envelope, Message};
+use anyhow::Result;
 
-mod queue_reader;
-mod queue_writer;
+mod reader_mpsc;
+mod writer_mpsc;
 
-pub(crate) fn new_queue<M: Message>() -> (impl QueueWriter<M>, impl QueueReader<M>) {
+pub trait QueueReader<M: Message> {
+  fn dequeue(&self) -> Envelope<M>;
+  fn dequeue_opt(&self) -> Option<Envelope<M>> {
+    self.try_dequeue().unwrap()
+  }
+  fn try_dequeue(&self) -> Result<Option<Envelope<M>>>;
+  fn non_empty(&self) -> bool;
+  fn is_empty(&self) -> bool;
+  fn number_of_messages(&self) -> usize;
+}
+
+pub trait QueueWriter<M: Message> {
+  fn try_enqueue(&self, msg: Envelope<M>) -> Result<()>;
+}
+
+pub(crate) fn new_mpsc_queue<M: Message>() -> (impl QueueWriter<M>, impl QueueReader<M>) {
   let (tx, rx) = channel::<Envelope<M>>();
   let qw = QueueWriterInMPSC::new(tx);
   let qr = QueueReaderInMPSC::new(rx);
@@ -26,7 +42,7 @@ mod tests {
 
   #[test]
   fn test_new_queue() {
-    let (qw, qr) = new_queue();
+    let (qw, qr) = new_mpsc_queue();
     let expected_message = Envelope::new(Counter(1));
     qw.try_enqueue(expected_message.clone()).unwrap();
 
