@@ -27,12 +27,12 @@ impl<M: Message> Envelope<M> {
 
 pub enum MailboxType {
   MPSC,
-  VEC_QUEUE,
+  VecQueue,
 }
 
 pub fn new_mailbox<M: Message>(mailbox_type: MailboxType, limit: u32) -> Mailbox<M> {
   match mailbox_type {
-    MailboxType::VEC_QUEUE => {
+    MailboxType::VecQueue => {
       let (qw, qr) = new_vec_queue();
       let mailbox = Mailbox::new(limit, qr, qw);
       mailbox

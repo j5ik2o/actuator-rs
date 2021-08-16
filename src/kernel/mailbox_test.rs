@@ -21,7 +21,7 @@ fn test_is_scheduled() {
 
   run_test(|| {
     test(MailboxType::MPSC);
-    test(MailboxType::VEC_QUEUE);
+    test(MailboxType::VecQueue);
   });
 }
 
@@ -38,7 +38,7 @@ fn test_is_closed() {
   }
   run_test(|| {
     test(MailboxType::MPSC);
-    test(MailboxType::VEC_QUEUE);
+    test(MailboxType::VecQueue);
   });
 }
 
@@ -68,7 +68,7 @@ fn test_is_suspend() {
   }
   run_test(|| {
     test(MailboxType::MPSC);
-    test(MailboxType::VEC_QUEUE);
+    test(MailboxType::VecQueue);
   });
 }
 
