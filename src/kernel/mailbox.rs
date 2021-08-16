@@ -7,7 +7,7 @@ use crate::kernel::{Envelope, Message};
 use crate::kernel::mailbox_status::MailboxStatus;
 use crate::kernel::queue::*;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct MailboxSender<M: Message> {
   queue: Arc<dyn QueueWriter<M>>,
 }
@@ -31,11 +31,12 @@ unsafe impl<M: Message> Send for MailboxSender<M> {}
 
 unsafe impl<M: Message> Sync for MailboxSender<M> {}
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Mailbox<M: Message> {
   inner: Arc<Mutex<MailboxInner<M>>>,
 }
 
+#[derive(Debug)]
 struct MailboxInner<M: Message> {
   queue_reader: Arc<dyn QueueReader<M>>,
   queue_writer: Arc<dyn QueueWriter<M>>,

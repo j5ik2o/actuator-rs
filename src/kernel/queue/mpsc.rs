@@ -9,10 +9,12 @@ use thiserror::Error;
 use crate::kernel::{Envelope, Message, QueueWriter, MessageSize};
 use crate::kernel::QueueReader;
 
+#[derive(Debug)]
 pub struct QueueReaderInMPSC<M: Message> {
   inner: Mutex<QueueReaderInMPSCInner<M>>,
 }
 
+#[derive(Debug)]
 struct QueueReaderInMPSCInner<M: Message> {
   rx: Receiver<Envelope<M>>,
   next_item: Option<Envelope<M>>,
@@ -80,7 +82,7 @@ impl<M: Message> QueueReader<M> for QueueReaderInMPSC<M> {
   }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct QueueWriterInMPSC<M: Message> {
   tx: Sender<Envelope<M>>,
 }

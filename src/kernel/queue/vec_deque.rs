@@ -2,11 +2,12 @@ use std::sync::{Arc, Mutex};
 use std::collections::VecDeque;
 use crate::kernel::{Message, QueueWriter, Envelope, QueueReader, MessageSize};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct QueueInVecQueue<M: Message> {
   inner: Arc<Mutex<QueueInVecQueueInner<M>>>,
 }
 
+#[derive(Debug)]
 struct QueueInVecQueueInner<M: Message> {
   queue: VecDeque<Envelope<M>>,
 }
@@ -21,12 +22,12 @@ impl<M: Message> QueueInVecQueue<M> {
 impl<M: Message> QueueReader<M> for QueueInVecQueue<M> {
   fn dequeue(&self) -> Envelope<M> {
     let mut inner = self.inner.lock().unwrap();
-    inner.queue.pop_back().unwrap()
+    inner.queue.pop_front().unwrap()
   }
 
   fn try_dequeue(&self) -> anyhow::Result<Option<Envelope<M>>> {
     let mut inner = self.inner.lock().unwrap();
-    let result = inner.queue.pop_back();
+    let result = inner.queue.pop_front();
     Ok(result)
   }
 

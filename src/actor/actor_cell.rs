@@ -2,11 +2,12 @@ use std::sync::Arc;
 
 use super::actor_uri::ActorUri;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ActorCell {
   inner: Arc<ActorCellInner>,
 }
 
+#[derive(Debug)]
 struct ActorCellInner {
   uri: ActorUri,
 }

@@ -6,6 +6,7 @@ use crate::kernel::{Envelope, Message};
 use anyhow::Result;
 use std::collections::VecDeque;
 use crate::kernel::queue::vec_deque::QueueInVecQueue;
+use std::fmt::Debug;
 
 mod mpsc;
 mod vec_deque;
@@ -15,7 +16,7 @@ pub enum MessageSize {
   Limitless,
 }
 
-pub trait QueueReader<M: Message> {
+pub trait QueueReader<M: Message>: Debug {
   fn dequeue(&self) -> Envelope<M>;
   fn dequeue_opt(&self) -> Option<Envelope<M>> {
     self.try_dequeue().unwrap()
@@ -28,7 +29,7 @@ pub trait QueueReader<M: Message> {
   fn number_of_messages(&self) -> MessageSize;
 }
 
-pub trait QueueWriter<M: Message> {
+pub trait QueueWriter<M: Message>: Debug {
   fn try_enqueue(&self, msg: Envelope<M>) -> Result<()>;
 }
 

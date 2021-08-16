@@ -55,9 +55,9 @@ mod tests {
 
   impl Message for Counter {}
 
-  #[test]
-  fn test_new_mailbox() {
-    let mailbox1 = new_mailbox(MailboxType::MPSC, 2);
+  fn test(mailbox_type: MailboxType) {
+    let mailbox1 = new_mailbox(mailbox_type, 2);
+    debug!("mailbox1 = {:?}", mailbox1);
     let dispatcher1 = mailbox1.new_sender();
     let expected_message1 = Envelope::new(Counter(1));
 
@@ -71,12 +71,21 @@ mod tests {
       .try_enqueue(ExtendedCell::default(), expected_message2.clone())
       .unwrap();
 
+    debug!("mailbox1 = {:?}", mailbox1);
+
     let mut mailbox2 = mailbox1.clone();
+    debug!("mailbox2 = {:?}", mailbox2);
 
     let received_message1 = mailbox2.try_dequeue().unwrap_or_default().unwrap();
     assert_eq!(received_message1, expected_message1);
 
     let received_message2 = mailbox2.try_dequeue().unwrap_or_default().unwrap();
     assert_eq!(received_message2, expected_message2)
+  }
+
+  #[test]
+  fn test_new_mailbox() {
+    test(MailboxType::MPSC);
+    test(MailboxType::VecQueue);
   }
 }
