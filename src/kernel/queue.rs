@@ -1,13 +1,14 @@
 use std::sync::mpsc::*;
 
-pub use reader_mpsc::*;
-pub use writer_mpsc::*;
+pub use mpsc::*;
 
 use crate::kernel::{Envelope, Message};
 use anyhow::Result;
+use std::collections::VecDeque;
+use crate::kernel::queue::vec_deque::QueueInVecQueue;
 
-mod reader_mpsc;
-mod writer_mpsc;
+mod mpsc;
+mod vec_deque;
 
 pub trait QueueReader<M: Message> {
   fn dequeue(&self) -> Envelope<M>;
@@ -16,12 +17,20 @@ pub trait QueueReader<M: Message> {
   }
   fn try_dequeue(&self) -> Result<Option<Envelope<M>>>;
   fn non_empty(&self) -> bool;
-  fn is_empty(&self) -> bool;
+  fn is_empty(&self) -> bool {
+    !self.non_empty()
+  }
   fn number_of_messages(&self) -> usize;
 }
 
 pub trait QueueWriter<M: Message> {
   fn try_enqueue(&self, msg: Envelope<M>) -> Result<()>;
+}
+
+pub(crate) fn new_vec_queue<M: Message>() -> (impl QueueWriter<M>, impl QueueReader<M>) {
+  let vec_q = VecDeque::new();
+  let q = QueueInVecQueue::new(vec_q);
+  (q.clone(), q.clone())
 }
 
 pub(crate) fn new_mpsc_queue<M: Message>() -> (impl QueueWriter<M>, impl QueueReader<M>) {

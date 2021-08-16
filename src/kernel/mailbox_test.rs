@@ -1,4 +1,4 @@
-use crate::kernel::{new_mailbox, Message};
+use crate::kernel::{new_mailbox, Message, MailboxType};
 
 use std::{env, panic};
 
@@ -9,34 +9,43 @@ impl Message for Counter {}
 
 #[test]
 fn test_is_scheduled() {
-  run_test(|| {
-    let mut mailbox1 = new_mailbox::<Counter>(2);
+  fn test(mailbox_type: MailboxType) {
+    let mut mailbox1 = new_mailbox::<Counter>(mailbox_type, 2);
     mailbox1.set_as_idle();
     assert!(!mailbox1.is_scheduled());
     mailbox1.set_as_scheduled();
     assert!(mailbox1.is_scheduled());
     mailbox1.set_as_idle();
     assert!(!mailbox1.is_scheduled());
+  }
+
+  run_test(|| {
+    test(MailboxType::MPSC);
+    test(MailboxType::VEC_QUEUE);
   });
 }
 
 #[test]
 fn test_is_closed() {
-  run_test(|| {
-    let mut mailbox1 = new_mailbox::<Counter>(2);
+  fn test(mailbox_type: MailboxType) {
+    let mut mailbox1 = new_mailbox::<Counter>(mailbox_type, 2);
     mailbox1.set_as_idle();
     assert!(!mailbox1.is_closed());
     mailbox1.become_closed();
     assert!(mailbox1.is_closed());
     mailbox1.set_as_idle();
     assert!(mailbox1.is_closed());
+  }
+  run_test(|| {
+    test(MailboxType::MPSC);
+    test(MailboxType::VEC_QUEUE);
   });
 }
 
 #[test]
 fn test_is_suspend() {
-  run_test(|| {
-    let mut mailbox1 = new_mailbox::<Counter>(2);
+  fn test(mailbox_type: MailboxType) {
+    let mut mailbox1 = new_mailbox::<Counter>(mailbox_type, 2);
     mailbox1.set_as_idle();
     assert!(!mailbox1.is_suspend());
     assert_eq!(mailbox1.suspend_count(), 0);
@@ -56,6 +65,10 @@ fn test_is_suspend() {
     assert!(!mailbox1.is_suspend());
     mailbox1.set_as_idle();
     assert!(!mailbox1.is_suspend());
+  }
+  run_test(|| {
+    test(MailboxType::MPSC);
+    test(MailboxType::VEC_QUEUE);
   });
 }
 

@@ -1,5 +1,5 @@
 use crate::actor::actor_cell::ActorCell;
-use crate::kernel::{MailboxSender, Message, new_mailbox};
+use crate::kernel::{MailboxSender, Message, new_mailbox, MailboxType};
 
 #[derive(Clone)]
 pub struct ExtendedCell<M: Message> {
@@ -9,7 +9,7 @@ pub struct ExtendedCell<M: Message> {
 
 impl<M: Message> Default for ExtendedCell<M> {
   fn default() -> Self {
-    let mailbox = new_mailbox(1);
+    let mailbox = new_mailbox(MailboxType::MPSC, 1);
     let mailbox_sender = mailbox.new_sender();
     Self {
       cell: ActorCell::default(),

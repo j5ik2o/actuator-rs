@@ -1,10 +1,13 @@
-use std::sync::Mutex;
+use std::fmt::Debug;
 use std::sync::mpsc::{Receiver, TryRecvError};
+use std::sync::mpsc::Sender;
+use std::sync::Mutex;
 
 use anyhow::Result;
 use thiserror::Error;
 
-use crate::kernel::{Envelope, Message, QueueReader};
+use crate::kernel::{Envelope, Message, QueueWriter};
+use crate::kernel::QueueReader;
 
 pub struct QueueReaderInMPSC<M: Message> {
   inner: Mutex<QueueReaderInMPSCInner<M>>,
@@ -74,5 +77,31 @@ impl<M: Message> QueueReader<M> for QueueReaderInMPSC<M> {
 
   fn number_of_messages(&self) -> usize {
     0
+  }
+}
+
+#[derive(Clone)]
+pub struct QueueWriterInMPSC<M: Message> {
+  tx: Sender<Envelope<M>>,
+}
+
+#[derive(Clone, Debug, Error)]
+pub enum EnqueueError<A: Debug> {
+  #[error("send error: {0:?}")]
+  SendError(A),
+}
+
+impl<M: Message> QueueWriterInMPSC<M> {
+  pub fn new(tx: Sender<Envelope<M>>) -> Self {
+    Self { tx }
+  }
+}
+
+impl<M: Message> QueueWriter<M> for QueueWriterInMPSC<M> {
+  fn try_enqueue(&self, msg: Envelope<M>) -> Result<()> {
+    match self.tx.send(msg) {
+      Ok(_) => Ok(()),
+      Err(e) => Err(EnqueueError::SendError(e.0))?,
+    }
   }
 }

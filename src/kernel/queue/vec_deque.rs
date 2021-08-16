@@ -3,23 +3,22 @@ use std::collections::VecDeque;
 use crate::kernel::{Message, QueueWriter, Envelope, QueueReader};
 
 #[derive(Clone)]
-pub struct QueueReaderInVecQueue<M: Message> {
-  inner: Arc<Mutex<QueueReaderInVecQueueInner<M>>>,
+pub struct QueueInVecQueue<M: Message> {
+  inner: Arc<Mutex<QueueInVecQueueInner<M>>>,
 }
 
-struct QueueReaderInVecQueueInner<M: Message> {
+struct QueueInVecQueueInner<M: Message> {
   queue: VecDeque<Envelope<M>>,
 }
 
-impl<M: Message> QueueReaderInVecQueue<M> {
-    pub fn new(inner: Arc<VecDeque<Envelope<M>>>) -> Self {
-        let q = Arc::try_unwrap(inner).unwrap();
-        let inner = Arc::from(Mutex::new(QueueReaderInVecQueueInner { queue: q }));
-        Self { inner }
-    }
+impl<M: Message> QueueInVecQueue<M> {
+  pub fn new(queue: VecDeque<Envelope<M>>) -> Self {
+    let inner = Arc::from(Mutex::new(QueueInVecQueueInner { queue }));
+    Self { inner }
+  }
 }
 
-impl<M: Message> QueueReader<M> for QueueReaderInVecQueue<M> {
+impl<M: Message> QueueReader<M> for QueueInVecQueue<M> {
   fn dequeue(&self) -> Envelope<M> {
     let mut inner = self.inner.lock().unwrap();
     inner.queue.pop_back().unwrap()
@@ -42,3 +41,10 @@ impl<M: Message> QueueReader<M> for QueueReaderInVecQueue<M> {
   }
 }
 
+impl<M: Message> QueueWriter<M> for QueueInVecQueue<M> {
+  fn try_enqueue(&self, msg: Envelope<M>) -> anyhow::Result<()> {
+    let mut inner = self.inner.lock().unwrap();
+    inner.queue.push_back(msg);
+    Ok(())
+  }
+}

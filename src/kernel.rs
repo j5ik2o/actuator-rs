@@ -25,10 +25,24 @@ impl<M: Message> Envelope<M> {
   }
 }
 
-pub fn new_mailbox<M: Message>(limit: u32) -> Mailbox<M> {
-  let (qw, qr) = new_mpsc_queue();
-  let mailbox = Mailbox::new(limit, qr, qw);
-  mailbox
+pub enum MailboxType {
+  MPSC,
+  VEC_QUEUE,
+}
+
+pub fn new_mailbox<M: Message>(mailbox_type: MailboxType, limit: u32) -> Mailbox<M> {
+  match mailbox_type {
+    MailboxType::VEC_QUEUE => {
+      let (qw, qr) = new_vec_queue();
+      let mailbox = Mailbox::new(limit, qr, qw);
+      mailbox
+    }
+    MailboxType::MPSC => {
+      let (qw, qr) = new_mpsc_queue();
+      let mailbox = Mailbox::new(limit, qr, qw);
+      mailbox
+    }
+  }
 }
 
 #[cfg(test)]
@@ -43,7 +57,7 @@ mod tests {
 
   #[test]
   fn test_new_mailbox() {
-    let mailbox1 = new_mailbox(2);
+    let mailbox1 = new_mailbox(MailboxType::MPSC, 2);
     let dispatcher1 = mailbox1.new_sender();
     let expected_message1 = Envelope::new(Counter(1));
 
