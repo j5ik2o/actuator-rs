@@ -48,6 +48,7 @@ pub fn new_mailbox<M: Message>(mailbox_type: MailboxType, limit: u32) -> Mailbox
 mod tests {
   use super::*;
   use crate::actor::ExtendedCell;
+  use std::env;
 
   #[derive(Debug, Clone, PartialEq)]
   struct Counter(u32);
@@ -55,6 +56,10 @@ mod tests {
   impl Message for Counter {}
 
   fn test(mailbox_type: MailboxType) {
+    env::set_var("RUST_LOG", "debug");
+    // env::set_var("RUST_LOG", "trace");
+    logger::try_init();
+
     let mailbox1 = new_mailbox(mailbox_type, 2);
     debug!("mailbox1 = {:?}", mailbox1);
     let dispatcher1 = mailbox1.new_sender();
