@@ -7,6 +7,7 @@ mod mailbox_status;
 #[cfg(test)]
 mod mailbox_test;
 mod queue;
+mod system_message;
 
 pub use queue::*;
 pub use mailbox::*;
@@ -33,12 +34,14 @@ pub fn new_mailbox<M: Message>(mailbox_type: MailboxType, limit: u32) -> Mailbox
   match mailbox_type {
     MailboxType::VecQueue => {
       let (qw, qr) = new_vec_queue();
-      let mailbox = Mailbox::new(limit, qr, qw);
+      let (system_qw, system_qr) = new_vec_queue();
+      let mailbox = Mailbox::new(limit, qr, qw, system_qr, system_qw);
       mailbox
     }
     MailboxType::MPSC => {
       let (qw, qr) = new_mpsc_queue();
-      let mailbox = Mailbox::new(limit, qr, qw);
+      let (system_qw, system_qr) = new_vec_queue();
+      let mailbox = Mailbox::new(limit, qr, qw, system_qr, system_qw);
       mailbox
     }
   }

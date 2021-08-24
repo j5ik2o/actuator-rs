@@ -41,6 +41,8 @@ pub struct Mailbox<M: Message> {
 struct MailboxInner<M: Message> {
   queue_reader: Arc<dyn QueueReader<M>>,
   queue_writer: Arc<dyn QueueWriter<M>>,
+  system_queue_reader: Arc<dyn QueueReader<M>>,
+  system_queue_writer: Arc<dyn QueueWriter<M>>,
   actor: Option<ExtendedCell<M>>,
   current_status: Arc<AtomicU32>,
   limit: u32,
@@ -52,11 +54,15 @@ impl<M: Message> Mailbox<M> {
     limit: u32,
     queue_reader: impl QueueReader<M> + 'static,
     queue_writer: impl QueueWriter<M> + 'static,
+    system_queue_reader: impl QueueReader<M> + 'static,
+    system_queue_writer: impl QueueWriter<M> + 'static,
   ) -> Self {
     Self {
       inner: Arc::from(Mutex::new(MailboxInner {
         queue_reader: Arc::from(queue_reader),
         queue_writer: Arc::from(queue_writer),
+        system_queue_reader: Arc::from(system_queue_reader),
+        system_queue_writer: Arc::from(system_queue_writer),
         actor: None,
         current_status: Arc::new(AtomicU32::from(MailboxStatus::Open as u32)),
         limit,
@@ -68,6 +74,12 @@ impl<M: Message> Mailbox<M> {
   pub fn new_sender(&self) -> MailboxSender<M> {
     let inner = self.inner.lock().unwrap();
     let new_queue_writer = Arc::clone(&inner.queue_writer);
+    MailboxSender::from_arc(new_queue_writer)
+  }
+
+  pub fn new_system_sender(&self) -> MailboxSender<M> {
+    let inner = self.inner.lock().unwrap();
+    let new_queue_writer = Arc::clone(&inner.system_queue_writer);
     MailboxSender::from_arc(new_queue_writer)
   }
 
@@ -228,7 +240,7 @@ impl<M: Message> Mailbox<M> {
         has_message_hint || has_system_message_hint || self.has_messages()
       }
       cs if cs == MailboxStatus::Closed as u32 => false,
-      _ => has_system_message_hint || self.has_system_messages(),
+      _ => has_system_message_hint || self.has_messages_for_system(),
     }
   }
 
@@ -253,9 +265,19 @@ impl<M: Message> Mailbox<M> {
     inner.queue_writer.try_enqueue(msg)
   }
 
+  pub fn try_enqueue_for_system(&self, _cell: ExtendedCell<M>, msg: Envelope<M>) -> Result<()> {
+    let inner = self.inner.lock().unwrap();
+    inner.system_queue_writer.try_enqueue(msg)
+  }
+
   pub fn dequeue(&mut self) -> Envelope<M> {
     let inner = self.inner.lock().unwrap();
     inner.queue_reader.dequeue()
+  }
+
+  pub fn dequeue_for_system(&mut self) -> Envelope<M> {
+    let inner = self.inner.lock().unwrap();
+    inner.system_queue_reader.dequeue()
   }
 
   pub fn dequeue_opt(&mut self) -> Option<Envelope<M>> {
@@ -263,9 +285,19 @@ impl<M: Message> Mailbox<M> {
     inner.queue_reader.dequeue_opt()
   }
 
+  pub fn dequeue_opt_for_system(&mut self) -> Option<Envelope<M>> {
+    let inner = self.inner.lock().unwrap();
+    inner.system_queue_reader.dequeue_opt()
+  }
+
   pub fn try_dequeue(&mut self) -> Result<Option<Envelope<M>>> {
     let inner = self.inner.lock().unwrap();
     inner.queue_reader.try_dequeue()
+  }
+
+  pub fn try_dequeue_for_system(&mut self) -> Result<Option<Envelope<M>>> {
+    let inner = self.inner.lock().unwrap();
+    inner.system_queue_reader.try_dequeue()
   }
 
   pub fn dequeue_aware_limit(&mut self) -> Option<Envelope<M>> {
@@ -288,18 +320,23 @@ impl<M: Message> Mailbox<M> {
     }
   }
 
-  pub fn has_system_messages(&self) -> bool {
-    let inner = self.inner.lock().unwrap();
-    inner.queue_reader.non_empty()
-  }
-
   pub fn has_messages(&self) -> bool {
     let inner = self.inner.lock().unwrap();
     inner.queue_reader.non_empty()
   }
 
+  pub fn has_messages_for_system(&self) -> bool {
+    let inner = self.inner.lock().unwrap();
+    inner.system_queue_reader.non_empty()
+  }
+
   pub fn number_of_messages(&self) -> MessageSize {
     let inner = self.inner.lock().unwrap();
     inner.queue_reader.number_of_messages()
+  }
+
+  pub fn number_of_messages_for_system(&self) -> MessageSize {
+    let inner = self.inner.lock().unwrap();
+    inner.system_queue_reader.number_of_messages()
   }
 }
