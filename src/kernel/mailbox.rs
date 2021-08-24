@@ -6,6 +6,7 @@ use crate::actor::ExtendedCell;
 use crate::kernel::{Envelope, Message};
 use crate::kernel::mailbox_status::MailboxStatus;
 use crate::kernel::queue::*;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 #[derive(Debug, Clone)]
 pub struct MailboxSender<M: Message> {
@@ -41,7 +42,7 @@ struct MailboxInner<M: Message> {
   queue_reader: Arc<dyn QueueReader<M>>,
   queue_writer: Arc<dyn QueueWriter<M>>,
   actor: Option<ExtendedCell<M>>,
-  current_status: u32,
+  current_status: Arc<AtomicU32>,
   limit: u32,
   count: u32,
 }
@@ -57,7 +58,7 @@ impl<M: Message> Mailbox<M> {
         queue_reader: Arc::from(queue_reader),
         queue_writer: Arc::from(queue_writer),
         actor: None,
-        current_status: MailboxStatus::Open as u32,
+        current_status: Arc::new(AtomicU32::from(MailboxStatus::Open as u32)),
         limit,
         count: 0,
       })),
@@ -77,41 +78,47 @@ impl<M: Message> Mailbox<M> {
 
   pub fn should_process_message(&self) -> bool {
     let inner = self.inner.lock().unwrap();
-    (inner.current_status & MailboxStatus::ShouldNotProcessMask as u32) == 0
+    let current_status = inner.current_status.load(Ordering::Relaxed);
+    (current_status & MailboxStatus::ShouldNotProcessMask as u32) == 0
   }
 
   pub fn suspend_count(&self) -> u32 {
     let inner = self.inner.lock().unwrap();
+    let current_status = inner.current_status.load(Ordering::Relaxed);
     debug!(
       "current_status = {}, suspend_mask = {}",
-      inner.current_status,
+      current_status,
       MailboxStatus::SuspendMask as u32
     );
-    inner.current_status / MailboxStatus::SuspendUnit as u32
+    current_status / MailboxStatus::SuspendUnit as u32
   }
 
   pub fn is_suspend(&self) -> bool {
     let inner = self.inner.lock().unwrap();
-    (inner.current_status & MailboxStatus::SuspendMask as u32) != 0
+    let current_status = inner.current_status.load(Ordering::Relaxed);
+    (current_status & MailboxStatus::SuspendMask as u32) != 0
   }
 
   pub fn is_closed(&self) -> bool {
     let inner = self.inner.lock().unwrap();
-    inner.current_status == MailboxStatus::Closed as u32
+    let current_status = inner.current_status.load(Ordering::Relaxed);
+    current_status == MailboxStatus::Closed as u32
   }
 
   pub fn is_scheduled(&self) -> bool {
     let inner = self.inner.lock().unwrap();
-    (inner.current_status & MailboxStatus::Scheduled as u32) != 0
+    let current_status = inner.current_status.load(Ordering::Relaxed);
+    (current_status & MailboxStatus::Scheduled as u32) != 0
   }
 
   fn _update_status(inner: &mut MutexGuard<MailboxInner<M>>, old: u32, new: u32) -> bool {
+    let current_status = inner.current_status.load(Ordering::Relaxed);
     debug!(
       "current_status = {}, old = {}, new = {}",
-      inner.current_status, old, new
+      current_status, old, new
     );
-    if inner.current_status == old {
-      inner.current_status = new;
+    if current_status == old {
+      inner.current_status.store(new, Ordering::Relaxed);
       true
     } else {
       false
@@ -119,17 +126,18 @@ impl<M: Message> Mailbox<M> {
   }
 
   fn _set_status(inner: &mut MutexGuard<MailboxInner<M>>, value: u32) {
-    inner.current_status = value;
+    inner.current_status.store(value, Ordering::Relaxed);
   }
 
   pub fn resume(&self) -> bool {
     loop {
       let mut inner = self.inner.lock().unwrap();
-      if inner.current_status == MailboxStatus::Closed as u32 {
+      let current_status = inner.current_status.load(Ordering::Relaxed);
+      if current_status == MailboxStatus::Closed as u32 {
         Self::_set_status(&mut inner, MailboxStatus::Closed as u32);
         return false;
       }
-      let s = inner.current_status;
+      let s = current_status;
       let next = if s < MailboxStatus::SuspendUnit as u32 {
         s
       } else {
@@ -144,12 +152,13 @@ impl<M: Message> Mailbox<M> {
   pub fn suspend(&self) -> bool {
     loop {
       let mut inner = self.inner.lock().unwrap();
-      if inner.current_status == MailboxStatus::Closed as u32 {
+      let current_status = inner.current_status.load(Ordering::Relaxed);
+      if current_status == MailboxStatus::Closed as u32 {
         Self::_set_status(&mut inner, MailboxStatus::Closed as u32);
         debug!("Closed: suspend: false");
         return false;
       }
-      let s = inner.current_status;
+      let s = current_status;
       if Self::_update_status(&mut inner, s, s + MailboxStatus::SuspendUnit as u32) {
         let result = s < MailboxStatus::SuspendUnit as u32;
         debug!(
@@ -166,12 +175,13 @@ impl<M: Message> Mailbox<M> {
   pub fn become_closed(&self) -> bool {
     loop {
       let mut inner = self.inner.lock().unwrap();
-      if inner.current_status == MailboxStatus::Closed as u32 {
+      let current_status = inner.current_status.load(Ordering::Relaxed);
+      if current_status == MailboxStatus::Closed as u32 {
         Self::_set_status(&mut inner, MailboxStatus::Closed as u32);
         debug!("become_closed: false");
         return false;
       }
-      let s = inner.current_status;
+      let s = current_status;
       if Self::_update_status(&mut inner, s, MailboxStatus::Closed as u32) {
         debug!("become_closed: true");
         return true;
@@ -182,7 +192,8 @@ impl<M: Message> Mailbox<M> {
   pub fn set_as_scheduled(&mut self) -> bool {
     loop {
       let mut inner = self.inner.lock().unwrap();
-      let s = inner.current_status;
+      let current_status = inner.current_status.load(Ordering::Relaxed);
+      let s = current_status;
       if (s & MailboxStatus::ShouldScheduleMask as u32) != MailboxStatus::Open as u32 {
         debug!("set_as_scheduled: false");
         return false;
@@ -197,7 +208,8 @@ impl<M: Message> Mailbox<M> {
   pub fn set_as_idle(&mut self) -> bool {
     loop {
       let mut inner = self.inner.lock().unwrap();
-      let s = inner.current_status;
+      let current_status = inner.current_status.load(Ordering::Relaxed);
+      let s = current_status;
       if Self::_update_status(&mut inner, s, s & !(MailboxStatus::Scheduled as u32)) {
         return true;
       }
@@ -210,7 +222,8 @@ impl<M: Message> Mailbox<M> {
     has_system_message_hint: bool,
   ) -> bool {
     let inner = self.inner.lock().unwrap();
-    match inner.current_status {
+    let current_status = inner.current_status.load(Ordering::Relaxed);
+    match current_status {
       cs if cs == MailboxStatus::Open as u32 || cs == MailboxStatus::Scheduled as u32 => {
         has_message_hint || has_system_message_hint || self.has_messages()
       }
