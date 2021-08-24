@@ -1,4 +1,4 @@
-use crate::kernel::{new_mailbox, Message, MailboxType};
+use crate::kernel::{new_mailbox, MailboxType};
 
 use std::{env, panic};
 

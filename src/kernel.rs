@@ -1,4 +1,4 @@
-use std::fmt::{Debug};
+
 use queue::new_mpsc_queue;
 use crate::kernel::message::Message;
 use crate::kernel::mailbox::Mailbox;
@@ -43,7 +43,7 @@ pub fn new_mailbox<M: Message>(mailbox_type: MailboxType, limit: u32) -> Mailbox
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::actor::ExtendedCell;
+  
   use std::env;
 
   #[derive(Debug, Clone, PartialEq)]
@@ -51,7 +51,7 @@ mod tests {
 
 //  impl Message for Counter {}
 
-  fn test(mailbox_type: MailboxType) {
+  fn test(_mailbox_type: MailboxType) {
     env::set_var("RUST_LOG", "debug");
     // env::set_var("RUST_LOG", "trace");
     logger::try_init();

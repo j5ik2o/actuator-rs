@@ -3,10 +3,10 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use anyhow::Result;
 
-use crate::actor::actor_ref::Sender;
+
 use crate::actor::ExtendedCell;
 use crate::kernel::{MailboxType, new_mailbox};
-use crate::kernel::any_message::AnyMessage;
+
 use crate::kernel::envelope::Envelope;
 use crate::kernel::mailbox_sender::MailboxSender;
 use crate::kernel::mailbox_status::MailboxStatus;
@@ -59,12 +59,12 @@ impl<M: Message> Mailbox<M> {
   }
 
   pub fn new_sender(&self) -> MailboxSender<M> {
-    let inner = self.inner.lock().unwrap();
+    let _inner = self.inner.lock().unwrap();
     MailboxSender::new(self.clone())
   }
 
   pub fn new_system_sender(&self) -> MailboxSender<M> {
-    let inner = self.inner.lock().unwrap();
+    let _inner = self.inner.lock().unwrap();
     MailboxSender::new(self.clone())
   }
 
@@ -234,7 +234,7 @@ impl<M: Message> Mailbox<M> {
     if self.should_process_message() {
       let next = self.dequeue_opt();
       if next.is_some() {
-        let mut inner = self.inner.lock().unwrap();
+        let _inner = self.inner.lock().unwrap();
         // inner.actor.invoke(next.unwrap())
       }
     }
