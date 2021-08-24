@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::kernel::mailbox::AnySender;
+use crate::kernel::mailbox::AnyMessageSender;
 
 use super::actor_uri::ActorUri;
 
@@ -12,17 +12,17 @@ pub struct ActorCell {
 #[derive(Clone)]
 struct ActorCellInner {
   uri: ActorUri,
-  mailbox: Arc<dyn AnySender>
+  mailbox: Arc<dyn AnyMessageSender>
 }
 
 impl ActorCell {
-  pub fn new(uri: ActorUri, mailbox: Arc<dyn AnySender>) -> Self {
+  pub fn new(uri: ActorUri, mailbox: Arc<dyn AnyMessageSender>) -> Self {
     Self {
       inner: Arc::from(ActorCellInner { uri, mailbox }),
     }
   }
 
-  pub fn mailbox(&self) -> Arc<dyn AnySender> {
+  pub fn mailbox(&self) -> Arc<dyn AnyMessageSender> {
     self.inner.mailbox.clone()
   }
 

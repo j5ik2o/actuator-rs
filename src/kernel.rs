@@ -14,7 +14,9 @@ pub mod system_message;
 pub mod message_dispatcher;
 pub mod message;
 pub mod envelope;
-mod any_message;
+pub mod any_message;
+pub mod mailbox_sender;
+pub mod any_message_sender;
 
 pub enum MailboxType {
   MPSC,
