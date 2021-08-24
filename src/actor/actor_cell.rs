@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
-use crate::kernel::mailbox::AnyMessageSender;
-
 use super::actor_uri::ActorUri;
+use crate::kernel::any_message_sender::AnyMessageSender;
 
 #[derive(Clone)]
 pub struct ActorCell {

@@ -1,7 +1,7 @@
 use crate::actor::ExtendedCell;
 use crate::kernel::message::Message;
-use crate::kernel::mailbox::MailboxSender;
 use crate::kernel::envelope::Envelope;
+use crate::kernel::mailbox_sender::MailboxSender;
 
 pub struct Dispatcher<M: Message> {
   msg: M,
