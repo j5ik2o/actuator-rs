@@ -3,41 +3,118 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use anyhow::Result;
 
 use crate::actor::ExtendedCell;
-use crate::kernel::{Envelope, Message};
 use crate::kernel::mailbox_status::MailboxStatus;
 use crate::kernel::queue::*;
 use std::sync::atomic::{AtomicU32, Ordering};
+use crate::actor::actor_ref::Sender;
+use crate::kernel::message::Message;
+use crate::kernel::envelope::Envelope;
+use crate::kernel::{MailboxType, new_mailbox};
+use crate::kernel::any_message::AnyMessage;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
+pub struct AnyEnqueueError;
+
+impl From<()> for AnyEnqueueError {
+  fn from(_: ()) -> AnyEnqueueError {
+    AnyEnqueueError
+  }
+}
+
+pub trait AnySender: Send + Sync {
+  fn try_any_enqueue(&self, msg: &mut AnyMessage, sender: Sender) -> Result<(), AnyEnqueueError>;
+
+  fn set_as_scheduled(&mut self) -> bool;
+  fn set_as_idle(&mut self) -> bool;
+  fn is_scheduled(&self) -> bool;
+
+  fn suspend(&self) -> bool;
+  fn resume(&self) -> bool;
+}
+
+impl<M: Message> AnySender for MailboxSender<M> {
+  fn try_any_enqueue(&self, msg: &mut AnyMessage, sender: Sender) -> Result<(), AnyEnqueueError> {
+    let actual = msg.take().map_err(|_| AnyEnqueueError)?;
+    let msg = Envelope {
+      message: actual,
+      sender,
+    };
+    self.try_enqueue(msg).map_err(|_| AnyEnqueueError)
+  }
+
+  fn set_as_scheduled(&mut self) -> bool {
+    todo!()
+  }
+
+  fn set_as_idle(&mut self) -> bool {
+    todo!()
+  }
+
+  fn is_scheduled(&self) -> bool {
+    todo!()
+  }
+
+  fn suspend(&self) -> bool {
+    todo!()
+  }
+
+  fn resume(&self) -> bool {
+    todo!()
+  }
+}
+
+#[derive(Clone)]
 pub struct MailboxSender<M: Message> {
-  queue: Arc<dyn QueueWriter<M>>,
+  mailbox: Mailbox<M>,
 }
 
 impl<M: Message> MailboxSender<M> {
-  pub fn new(queue: impl QueueWriter<M> + 'static) -> Self {
+  pub fn new(mailbox: Mailbox<M>) -> Self {
     Self {
-      queue: Arc::from(queue),
+      mailbox,
     }
   }
-  pub fn from_arc(queue: Arc<dyn QueueWriter<M>>) -> Self {
-    Self { queue }
+
+  pub fn try_enqueue(&self, msg: Envelope<M>) -> Result<()> {
+    self.mailbox.try_enqueue(msg)
   }
 
-  pub fn try_enqueue(&self, _cell: ExtendedCell<M>, msg: Envelope<M>) -> Result<()> {
-    self.queue.try_enqueue(msg)
+  pub fn set_as_scheduled(&mut self) -> bool {
+    self.mailbox.set_as_scheduled()
   }
+
+  pub fn set_as_idle(&mut self) -> bool {
+    self.mailbox.set_as_idle()
+  }
+
+  pub fn is_scheduled(&self) -> bool {
+    self.mailbox.is_scheduled()
+  }
+
+  pub fn is_closed(&self) -> bool {
+    self.mailbox.is_closed()
+  }
+
+  pub fn suspend(&self) -> bool {
+    self.mailbox.suspend()
+  }
+
+  pub fn resume(&self) -> bool {
+    self.mailbox.resume()
+  }
+
 }
 
 unsafe impl<M: Message> Send for MailboxSender<M> {}
 
 unsafe impl<M: Message> Sync for MailboxSender<M> {}
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Mailbox<M: Message> {
   inner: Arc<Mutex<MailboxInner<M>>>,
 }
 
-#[derive(Debug)]
+#[derive(Clone)]
 struct MailboxInner<M: Message> {
   queue_reader: Arc<dyn QueueReader<M>>,
   queue_writer: Arc<dyn QueueWriter<M>>,
@@ -47,6 +124,12 @@ struct MailboxInner<M: Message> {
   current_status: Arc<AtomicU32>,
   limit: u32,
   count: u32,
+}
+
+impl<M: Message> Default for Mailbox<M> {
+  fn default() -> Self {
+    new_mailbox(MailboxType::MPSC, u32::MAX)
+  }
 }
 
 impl<M: Message> Mailbox<M> {
@@ -73,14 +156,12 @@ impl<M: Message> Mailbox<M> {
 
   pub fn new_sender(&self) -> MailboxSender<M> {
     let inner = self.inner.lock().unwrap();
-    let new_queue_writer = Arc::clone(&inner.queue_writer);
-    MailboxSender::from_arc(new_queue_writer)
+    MailboxSender::new(self.clone())
   }
 
   pub fn new_system_sender(&self) -> MailboxSender<M> {
     let inner = self.inner.lock().unwrap();
-    let new_queue_writer = Arc::clone(&inner.system_queue_writer);
-    MailboxSender::from_arc(new_queue_writer)
+    MailboxSender::new(self.clone())
   }
 
   pub fn set_actor(&mut self, cell: ExtendedCell<M>) {
@@ -260,12 +341,12 @@ impl<M: Message> Mailbox<M> {
     inner.count = 0
   }
 
-  pub fn try_enqueue(&self, _cell: ExtendedCell<M>, msg: Envelope<M>) -> Result<()> {
+  pub fn try_enqueue(&self, msg: Envelope<M>) -> Result<()> {
     let inner = self.inner.lock().unwrap();
     inner.queue_writer.try_enqueue(msg)
   }
 
-  pub fn try_enqueue_for_system(&self, _cell: ExtendedCell<M>, msg: Envelope<M>) -> Result<()> {
+  pub fn try_enqueue_for_system(&self, msg: Envelope<M>) -> Result<()> {
     let inner = self.inner.lock().unwrap();
     inner.system_queue_writer.try_enqueue(msg)
   }

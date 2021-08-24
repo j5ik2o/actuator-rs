@@ -1,6 +1,7 @@
-use crate::kernel::{Envelope, Message, MailboxSender};
-
 use crate::actor::ExtendedCell;
+use crate::kernel::message::Message;
+use crate::kernel::mailbox::MailboxSender;
+use crate::kernel::envelope::Envelope;
 
 pub struct Dispatcher<M: Message> {
   msg: M,
@@ -12,7 +13,7 @@ impl<M: Message> Dispatcher<M> {
   pub fn dispatch(&self, receiver: ExtendedCell<M>, invocation: Envelope<M>) {
     let mailbox_sender = receiver.mailbox_sender.clone();
     mailbox_sender
-      .try_enqueue(receiver.clone(), invocation)
+      .try_enqueue(invocation)
       .unwrap();
     self.register_for_execution(mailbox_sender);
   }

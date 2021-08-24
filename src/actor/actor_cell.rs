@@ -1,28 +1,29 @@
 use std::sync::Arc;
 
+use crate::kernel::mailbox::AnySender;
+
 use super::actor_uri::ActorUri;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ActorCell {
   inner: Arc<ActorCellInner>,
 }
 
-#[derive(Debug)]
+#[derive(Clone)]
 struct ActorCellInner {
   uri: ActorUri,
-}
-
-impl Default for ActorCell {
-  fn default() -> Self {
-    ActorCell::new(ActorUri::default())
-  }
+  mailbox: Arc<dyn AnySender>
 }
 
 impl ActorCell {
-  pub fn new(uri: ActorUri) -> Self {
+  pub fn new(uri: ActorUri, mailbox: Arc<dyn AnySender>) -> Self {
     Self {
-      inner: Arc::from(ActorCellInner { uri }),
+      inner: Arc::from(ActorCellInner { uri, mailbox }),
     }
+  }
+
+  pub fn mailbox(&self) -> Arc<dyn AnySender> {
+    self.inner.mailbox.clone()
   }
 
   // pub(crate) fn kernel(&self) -> &KernelRef {

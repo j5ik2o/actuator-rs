@@ -1,21 +1,11 @@
 use crate::actor::actor_cell::ActorCell;
-use crate::kernel::{MailboxSender, Message, new_mailbox, MailboxType};
+use crate::kernel::mailbox::MailboxSender;
+use crate::kernel::message::Message;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ExtendedCell<M: Message> {
   cell: ActorCell,
   pub(crate) mailbox_sender: MailboxSender<M>,
-}
-
-impl<M: Message> Default for ExtendedCell<M> {
-  fn default() -> Self {
-    let mailbox = new_mailbox(MailboxType::MPSC, 1);
-    let mailbox_sender = mailbox.new_sender();
-    Self {
-      cell: ActorCell::default(),
-      mailbox_sender: mailbox_sender,
-    }
-  }
 }
 
 impl<M: Message> ExtendedCell<M> {

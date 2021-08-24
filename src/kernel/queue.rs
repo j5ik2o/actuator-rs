@@ -1,12 +1,14 @@
+use std::collections::VecDeque;
+use std::fmt::Debug;
 use std::sync::mpsc::*;
+
+use anyhow::Result;
 
 pub use mpsc::*;
 
-use crate::kernel::{Envelope, Message};
-use anyhow::Result;
-use std::collections::VecDeque;
+use crate::kernel::envelope::Envelope;
+use crate::kernel::message::Message;
 use crate::kernel::queue::vec_deque::QueueInVecQueue;
-use std::fmt::Debug;
 
 mod mpsc;
 mod vec_deque;
@@ -53,12 +55,12 @@ mod tests {
   #[derive(Debug, Clone, PartialEq)]
   struct Counter(u32);
 
-  impl Message for Counter {}
+//  impl Message for Counter {}
 
   #[test]
   fn test_new_vec_queue() {
     let (qw, qr) = new_vec_queue();
-    let expected_message = Envelope::new(Counter(1));
+    let expected_message = Envelope::new(Counter(1), None);
     qw.try_enqueue(expected_message.clone()).unwrap();
 
     match qr.number_of_messages() {
@@ -72,7 +74,7 @@ mod tests {
   #[test]
   fn test_new_mpsc_queue() {
     let (qw, qr) = new_mpsc_queue();
-    let expected_message = Envelope::new(Counter(1));
+    let expected_message = Envelope::new(Counter(1), None);
     qw.try_enqueue(expected_message.clone()).unwrap();
     let received_message = qr.try_dequeue().unwrap_or_default().unwrap();
     assert_eq!(received_message, expected_message)

@@ -1,6 +1,9 @@
-use std::sync::{Arc, Mutex, RwLock};
 use std::collections::VecDeque;
-use crate::kernel::{Message, QueueWriter, Envelope, QueueReader, MessageSize};
+use std::sync::{Arc, Mutex, RwLock};
+
+use crate::kernel::envelope::Envelope;
+use crate::kernel::message::Message;
+use crate::kernel::queue::{MessageSize, QueueReader, QueueWriter};
 
 #[derive(Debug, Clone)]
 pub struct QueueInVecQueue<M: Message> {

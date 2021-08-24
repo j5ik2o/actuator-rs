@@ -5,7 +5,7 @@ use std::{env, panic};
 #[derive(Debug, Clone, PartialEq)]
 struct Counter(u32);
 
-impl Message for Counter {}
+// impl Message for Counter {}
 
 #[test]
 fn test_is_scheduled() {

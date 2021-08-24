@@ -6,8 +6,9 @@ use std::sync::Mutex;
 use anyhow::Result;
 use thiserror::Error;
 
-use crate::kernel::{Envelope, Message, QueueWriter, MessageSize};
-use crate::kernel::QueueReader;
+use crate::kernel::envelope::Envelope;
+use crate::kernel::message::Message;
+use crate::kernel::queue::{MessageSize, QueueReader, QueueWriter};
 
 #[derive(Debug)]
 pub struct QueueReaderInMPSC<M: Message> {

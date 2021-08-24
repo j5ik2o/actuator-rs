@@ -1,5 +1,11 @@
 use crate::actor::extended_cell::ExtendedCell;
-use crate::kernel::{Envelope, Message};
+use crate::kernel::envelope::Envelope;
+use crate::kernel::message::Message;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct InternalActorRef {}
+
+pub type Sender = Option<InternalActorRef>;
 
 #[derive(Clone)]
 pub struct ActorRef<M: Message> {
@@ -12,7 +18,7 @@ impl<M: Message> ActorRef<M> {
   }
 
   pub fn send_message(&self, message: M) {
-    let _envelope = Envelope::new(message);
+    let _envelope = Envelope::new(message, None);
     // let _ = self.cell.send_message(envelope);
   }
 }

@@ -1,5 +1,5 @@
 #[allow(dead_code)]
-mod actor;
+pub mod actor;
 mod actor_system;
 mod kernel;
 
