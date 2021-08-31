@@ -23,7 +23,6 @@ use rand::prelude::*;
 use std::borrow::Borrow;
 
 impl ActorCell {
-
   pub fn new_uid() -> u32 {
     let mut rng = rand::thread_rng();
     let uid = rng.next_u32();
