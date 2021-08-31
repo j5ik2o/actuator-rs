@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::actor::address::Address;
 use std::fmt::{Display, Formatter};
 use crate::actor::actor_cell::ActorCell;
-use uri_rs::{Uri, Path};
+use uri_rs::{Uri};
 
 #[derive(Debug, Clone, PartialEq, Hash)]
 pub enum ActorPath {
@@ -26,7 +26,6 @@ impl Display for ActorPath {
 }
 
 impl ActorPath {
-
   pub fn from_string(s: String) -> Self {
     let uri = Uri::parse(&s).unwrap();
     let scheme = uri.schema();
@@ -35,8 +34,10 @@ impl ActorPath {
       .user_info()
       .map(|ui| ui.user_name())
       .unwrap_or("actor_system");
-    let host_name = uri.authority().map(|a|a.host_name().to_string());
-    let port = uri.authority().map(|a| a.port().map(|n| n as u32).unwrap_or(1000));
+    let host_name = uri.authority().map(|a| a.host_name().to_string());
+    let port = uri
+      .authority()
+      .map(|a| a.port().map(|n| n as u32).unwrap_or(1000));
     let address = Address {
       protocol: scheme.to_string(),
       system: user_name.to_string(),
@@ -133,6 +134,6 @@ impl ActorPath {
 
 #[test]
 fn test_slash() {
-  let s= ActorPath::from_string("tcp://host:8080/test".to_string());
+  let s = ActorPath::from_string("tcp://host:8080/test".to_string());
   println!("{}", s);
 }

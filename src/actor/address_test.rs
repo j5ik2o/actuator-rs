@@ -1,5 +1,4 @@
 use crate::actor::address::Address;
-use std::net::ToSocketAddrs;
 
 #[test]
 fn test_new() {

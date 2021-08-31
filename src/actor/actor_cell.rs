@@ -20,7 +20,6 @@ struct ActorCellInner {
 use substring::Substring;
 use std::str::FromStr;
 use rand::prelude::*;
-use std::borrow::Borrow;
 
 impl ActorCell {
   pub fn new_uid() -> u32 {
