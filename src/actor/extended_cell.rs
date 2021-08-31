@@ -2,7 +2,7 @@ use crate::actor::actor_cell::ActorCell;
 use crate::kernel::message::Message;
 use crate::kernel::mailbox_sender::MailboxSender;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ExtendedCell<M: Message> {
   cell: ActorCell,
   pub(crate) mailbox_sender: MailboxSender<M>,

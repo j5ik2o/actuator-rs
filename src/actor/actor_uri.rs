@@ -11,16 +11,6 @@ pub struct ActorUri {
   pub host: Arc<str>,
 }
 
-impl Default for ActorUri {
-  fn default() -> Self {
-    Self {
-      name: Arc::from(""),
-      path: ActorPath::default(),
-      host: Arc::from(""),
-    }
-  }
-}
-
 impl ActorUri {
   pub fn new(name: Arc<str>, path: ActorPath, host: Arc<str>) -> Self {
     Self { name, path, host }

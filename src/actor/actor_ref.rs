@@ -2,11 +2,6 @@ use crate::actor::extended_cell::ExtendedCell;
 use crate::kernel::envelope::Envelope;
 use crate::kernel::message::Message;
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct InternalActorRef {}
-
-pub type Sender = Option<InternalActorRef>;
-
 #[derive(Clone)]
 pub struct ActorRef<M: Message> {
   pub cell: ExtendedCell<M>,

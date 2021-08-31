@@ -6,8 +6,11 @@ pub mod actor_path;
 pub mod actor_ref;
 pub mod actor_uri;
 pub mod address;
+#[cfg(test)]
+mod address_test;
 pub mod context;
 pub mod extended_cell;
+pub mod internal_actor_ref;
 
 pub trait Actor: Send + Sync + 'static {
   type Msg: Message;

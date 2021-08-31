@@ -4,7 +4,7 @@ use std::fmt;
 use once_cell::sync::Lazy;
 use regex::Regex;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub struct Address {
   pub protocol: String,
   pub system: String,
@@ -16,11 +16,11 @@ impl fmt::Display for Address {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
     let mut result = format!("{}://{}", self.protocol, self.system);
     result = match &self.host {
-      Some(h) => format!("@{}", h),
+      Some(h) => format!("{}@{}", result, h),
       None => result,
     };
     result = match self.port {
-      Some(p) => format!(":{}", p),
+      Some(p) => format!("{}:{}", result, p),
       None => result,
     };
     write!(f, "{}", result)

@@ -55,7 +55,7 @@ mod tests {
   #[derive(Debug, Clone, PartialEq)]
   struct Counter(u32);
 
-//  impl Message for Counter {}
+  //  impl Message for Counter {}
 
   #[test]
   fn test_new_vec_queue() {
@@ -68,7 +68,7 @@ mod tests {
       MessageSize::Limitless => panic!(),
     }
     let received_message = qr.try_dequeue().unwrap_or_default().unwrap();
-    assert_eq!(received_message, expected_message)
+    assert_eq!(received_message.message, expected_message.message)
   }
 
   #[test]
@@ -77,6 +77,6 @@ mod tests {
     let expected_message = Envelope::new(Counter(1), None);
     qw.try_enqueue(expected_message.clone()).unwrap();
     let received_message = qr.try_dequeue().unwrap_or_default().unwrap();
-    assert_eq!(received_message, expected_message)
+    assert_eq!(received_message.message, expected_message.message)
   }
 }

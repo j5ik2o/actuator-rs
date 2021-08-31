@@ -1,22 +1,21 @@
-
 use queue::new_mpsc_queue;
 use crate::kernel::message::Message;
 use crate::kernel::mailbox::Mailbox;
 use crate::kernel::queue::new_vec_queue;
 
+pub mod any_message;
+pub mod any_message_sender;
 pub mod dispatcher;
+pub mod envelope;
 pub mod mailbox;
+pub mod mailbox_sender;
 pub mod mailbox_status;
 #[cfg(test)]
 mod mailbox_test;
+pub mod message;
+pub mod message_dispatcher;
 pub mod queue;
 pub mod system_message;
-pub mod message_dispatcher;
-pub mod message;
-pub mod envelope;
-pub mod any_message;
-pub mod mailbox_sender;
-pub mod any_message_sender;
 
 pub enum MailboxType {
   MPSC,
@@ -43,13 +42,13 @@ pub fn new_mailbox<M: Message>(mailbox_type: MailboxType, limit: u32) -> Mailbox
 #[cfg(test)]
 mod tests {
   use super::*;
-  
+
   use std::env;
 
   #[derive(Debug, Clone, PartialEq)]
   struct Counter(u32);
 
-//  impl Message for Counter {}
+  //  impl Message for Counter {}
 
   fn test(_mailbox_type: MailboxType) {
     env::set_var("RUST_LOG", "debug");

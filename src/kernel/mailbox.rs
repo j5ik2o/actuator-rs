@@ -3,7 +3,6 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use anyhow::Result;
 
-
 use crate::actor::ExtendedCell;
 use crate::kernel::{MailboxType, new_mailbox};
 
@@ -13,12 +12,12 @@ use crate::kernel::mailbox_status::MailboxStatus;
 use crate::kernel::message::Message;
 use crate::kernel::queue::*;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Mailbox<M: Message> {
   inner: Arc<Mutex<MailboxInner<M>>>,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct MailboxInner<M: Message> {
   queue_reader: Arc<dyn QueueReader<M>>,
   queue_writer: Arc<dyn QueueWriter<M>>,
