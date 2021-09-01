@@ -62,11 +62,11 @@ fn child_partial_cmp(me: &ActorPath, other: &ActorPath) -> Option<Ordering> {
   let mut cur_me = me;
   let mut cur_other = other;
   loop {
-    if cur_me == cur_other {
+    if (cur_me as *const ActorPath) == (cur_other as *const ActorPath) {
       return Some(Ordering::Equal);
     } else if cur_me.is_root() {
       return root_partial_cmp(cur_me, cur_other);
-    } else if other.is_root() {
+    } else if cur_other.is_root() {
       return match root_partial_cmp(cur_other, cur_me) {
         Some(Ordering::Greater) => Some(Ordering::Less),
         Some(Ordering::Less) => Some(Ordering::Greater),
@@ -79,6 +79,7 @@ fn child_partial_cmp(me: &ActorPath, other: &ActorPath) -> Option<Ordering> {
       if x != Some(Ordering::Equal) {
         return x;
       }
+      println!("{:?}, {:?}", cur_me, cur_other);
       cur_me = cur_me.parent();
       cur_other = cur_other.parent();
     }
