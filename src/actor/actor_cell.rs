@@ -36,9 +36,9 @@ impl ActorCell {
       .map(|(idx, _)| idx);
     result
       .map(|i| {
-        let s = name.substring(0, 1).to_string();
-        let i = name.substring(i, name.len() - 1);
-        (s, u32::from_str(i).unwrap())
+        let s = name[0..1].to_string();
+        let i = name[i..].to_string();
+        (s, u32::from_str(&i).unwrap())
       })
       .unwrap_or((name, 0))
   }

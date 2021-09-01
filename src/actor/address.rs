@@ -9,7 +9,7 @@ pub struct Address {
   pub protocol: String,
   pub system: String,
   pub host: Option<String>,
-  pub port: Option<u32>,
+  pub port: Option<u16>,
 }
 
 impl fmt::Display for Address {
@@ -38,8 +38,8 @@ impl From<(String, String)> for Address {
   }
 }
 
-impl From<(String, String, String, u32)> for Address {
-  fn from((protocol, system, host, port): (String, String, String, u32)) -> Self {
+impl From<(String, String, String, u16)> for Address {
+  fn from((protocol, system, host, port): (String, String, String, u16)) -> Self {
     Self {
       protocol,
       system,
