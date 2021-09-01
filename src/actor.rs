@@ -4,7 +4,6 @@ use crate::kernel::message::Message;
 pub mod actor_cell;
 pub mod actor_path;
 pub mod actor_ref;
-pub mod actor_uri;
 pub mod address;
 #[cfg(test)]
 mod address_test;

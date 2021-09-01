@@ -4,12 +4,16 @@ use crate::kernel::message::Message;
 
 #[derive(Clone)]
 pub struct ActorRef<M: Message> {
-  pub cell: ExtendedCell<M>,
+  cell: ExtendedCell<M>,
 }
 
 impl<M: Message> ActorRef<M> {
   pub fn new(cell: ExtendedCell<M>) -> ActorRef<M> {
     Self { cell }
+  }
+
+  pub fn cell(&self) -> &ExtendedCell<M> {
+    &self.cell
   }
 
   pub fn send_message(&self, message: M) {
