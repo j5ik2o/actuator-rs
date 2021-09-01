@@ -5,7 +5,7 @@ use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use std::sync::Arc;
 
-use uri_rs::Uri;
+use uri_rs::{Uri, Fragment};
 
 use crate::actor::actor_cell::ActorCell;
 use crate::actor::address::Address;
@@ -116,15 +116,17 @@ impl Display for ActorPath {
   }
 }
 
+struct Elems(Vec<String>);
+
 impl ActorPath {
 
-  fn address_from_uri_string(s: &str) -> Option<(Address, Vec<String>, Option<String>)> {
+  fn address_from_uri_string(s: &str) -> Option<(Address, Elems, Option<Fragment>)> {
     Uri::parse(s)
       .ok()
       .and_then(|uri| Self::address_from_uri(uri))
   }
 
-  fn address_from_uri(uri: Uri) -> Option<(Address, Vec<String>, Option<String>)> {
+  fn address_from_uri(uri: Uri) -> Option<(Address, Elems, Option<Fragment>)> {
     let scheme = uri.schema().to_string();
     let user_name = uri
       .authority()
@@ -136,12 +138,12 @@ impl ActorPath {
     match (scheme, user_name, host_name, port) {
       (s, Some(un), Some(h), Some(p)) => Some((
         Address::from((s.to_string(), un.to_string(), h.to_string(), p)),
-        uri.path().parts().clone(),
+        Elems(uri.path().parts().clone()),
         uri.fragment().cloned(),
       )),
       (s, Some(un), None, None) => Some((
         Address::from((s.to_string(), un.to_string())),
-        uri.path().parts().clone(),
+        Elems(uri.path().parts().clone()),
         uri.fragment().cloned(),
       )),
       _ => None,
@@ -150,12 +152,12 @@ impl ActorPath {
 
   pub fn from_uri(uri: Uri) -> Self {
     let (address, elems, fragment) = Self::address_from_uri(uri).unwrap();
-    Self::of_root(address, "/".to_string()).with_children(elems, fragment)
+    Self::of_root(address, "/".to_string()).with_children(elems.0, fragment)
   }
 
   pub fn from_string(s: &str) -> Self {
     let (address, elems, fragment) = Self::address_from_uri_string(s).unwrap();
-    Self::of_root(address, "/".to_string()).with_children(elems, fragment)
+    Self::of_root(address, "/".to_string()).with_children(elems.0, fragment)
   }
 
   pub fn of_child(parent: ActorPath, name: String, uid: u32) -> Self {
