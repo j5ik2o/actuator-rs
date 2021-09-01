@@ -116,17 +116,41 @@ impl Display for ActorPath {
   }
 }
 
-struct Elems(Vec<String>);
+#[derive(Debug,Clone)]
+pub struct Children{ head: String, tail: Vec<String> }
+
+impl Children {
+  pub fn new(head: String, tail: Vec<String>) -> Self {
+    Self{
+      head,
+      tail,
+    }
+  }
+
+  pub fn head(&self) -> &String {
+    &self.head
+  }
+
+  pub fn tail(&self) -> &Vec<String> {
+    &self.tail
+  }
+
+  pub fn to_vec(self) -> Vec<String> {
+    let mut v = vec![self.head];
+    v.extend(self.tail);
+    v
+  }
+}
 
 impl ActorPath {
 
-  fn address_from_uri_string(s: &str) -> Option<(Address, Elems, Option<Fragment>)> {
+  fn address_from_uri_string(s: &str) -> Option<(Address, Children, Option<Fragment>)> {
     Uri::parse(s)
       .ok()
       .and_then(|uri| Self::address_from_uri(uri))
   }
 
-  fn address_from_uri(uri: Uri) -> Option<(Address, Elems, Option<Fragment>)> {
+  fn address_from_uri(uri: Uri) -> Option<(Address, Children, Option<Fragment>)> {
     let scheme = uri.schema().to_string();
     let user_name = uri
       .authority()
@@ -136,28 +160,34 @@ impl ActorPath {
       .map(|authority| authority.host_name().to_string());
     let port = uri.authority().and_then(|authority| authority.port());
     match (scheme, user_name, host_name, port) {
-      (s, Some(un), Some(h), Some(p)) => Some((
-        Address::from((s.to_string(), un.to_string(), h.to_string(), p)),
-        Elems(uri.path().parts().clone()),
-        uri.fragment().cloned(),
-      )),
-      (s, Some(un), None, None) => Some((
-        Address::from((s.to_string(), un.to_string())),
-        Elems(uri.path().parts().clone()),
-        uri.fragment().cloned(),
-      )),
+      (s, Some(un), Some(h), Some(p)) => {
+        let (head, tail) = uri.path().parts().split_first().unwrap();
+        Some((
+          Address::from((s.to_string(), un.to_string(), h.to_string(), p)),
+          Children::new(head.clone(), tail.to_vec()),
+          uri.fragment().cloned(),
+        ))
+      },
+      (s, Some(un), None, None) => {
+        let (head, tail) = uri.path().parts().split_first().unwrap();
+        Some((
+          Address::from((s.to_string(), un.to_string())),
+          Children::new(head.clone(), tail.to_vec()),
+          uri.fragment().cloned(),
+        ))
+      },
       _ => None,
     }
   }
 
   pub fn from_uri(uri: Uri) -> Self {
-    let (address, elems, fragment) = Self::address_from_uri(uri).unwrap();
-    Self::of_root(address, "/".to_string()).with_children(elems.0, fragment)
+    let (address, children, fragment) = Self::address_from_uri(uri).unwrap();
+    Self::of_root(address, "/".to_string()).with_children(children, fragment)
   }
 
   pub fn from_string(s: &str) -> Self {
-    let (address, elems, fragment) = Self::address_from_uri_string(s).unwrap();
-    Self::of_root(address, "/".to_string()).with_children(elems.0, fragment)
+    let (address, children, fragment) = Self::address_from_uri_string(s).unwrap();
+    Self::of_root(address, "/".to_string()).with_children(children, fragment)
   }
 
   pub fn of_child(parent: ActorPath, name: String, uid: u32) -> Self {
@@ -243,8 +273,8 @@ impl ActorPath {
     ActorPath::of_child(self, child, uid)
   }
 
-  pub fn with_children(self, child: Vec<String>, fragment: Option<String>) -> Self {
-    if let Some((last, elements)) = child.split_last() {
+  pub fn with_children(self, children: Children, fragment: Option<String>) -> Self {
+    if let Some((last, elements)) = children.clone().to_vec().split_last() {
       let new_self = elements.into_iter().fold(self, |path, elem| {
         if elem.is_empty() {
           path
@@ -258,7 +288,7 @@ impl ActorPath {
         new_self.with_child(last.clone(), fragment)
       }
     } else {
-      let elem = child.first().cloned().unwrap();
+      let elem = children.head().clone();
       if elem.is_empty() {
         self
       } else {
