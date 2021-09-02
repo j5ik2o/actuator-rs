@@ -1,4 +1,4 @@
-use crate::actor::actor_ref::internal_actor_ref::Sender;
+use crate::actor::actor_ref::untyped_actor_ref::Sender;
 use crate::kernel::any_message::AnyMessage;
 use crate::kernel::envelope::Envelope;
 use crate::kernel::mailbox_sender::MailboxSender;

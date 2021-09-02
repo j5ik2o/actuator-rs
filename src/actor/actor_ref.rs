@@ -4,13 +4,11 @@ use std::sync::Arc;
 use crate::actor::actor_path::ActorPath;
 use crate::actor::actor_ref_provider::ActorRefProvider;
 
-
-
 use crate::kernel::system_message::SystemMessage;
 use std::fmt::Debug;
 
-pub mod internal_actor_ref;
-pub mod local_actor_ref;
+pub mod untyped_actor_ref;
+pub mod typed_actor_ref;
 
 pub trait ToActorRef {
   fn to_actor_ref<'a>(self: Arc<Self>) -> Arc<dyn ActorRef + 'a>

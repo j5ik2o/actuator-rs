@@ -1,14 +1,15 @@
 use crate::actor::actor_cell::ActorCell;
 
-
 #[derive(Debug, Clone)]
-pub struct InternalActorRef {
+pub struct UntypedActorRef {
   pub(crate) cell: ActorCell,
 }
 
-pub type Sender = Option<InternalActorRef>;
+pub type Sender = Option<UntypedActorRef>;
 
-impl InternalActorRef {
+
+
+impl UntypedActorRef {
   pub fn new(cell: ActorCell) -> Self {
     Self { cell }
   }

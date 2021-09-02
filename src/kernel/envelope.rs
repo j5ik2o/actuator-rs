@@ -1,5 +1,5 @@
 use crate::kernel::message::Message;
-use crate::actor::actor_ref::internal_actor_ref::Sender;
+use crate::actor::actor_ref::untyped_actor_ref::Sender;
 
 #[derive(Debug, Clone)]
 pub struct Envelope<M: Message> {

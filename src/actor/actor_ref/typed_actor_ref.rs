@@ -9,11 +9,11 @@ use std::cmp::Ordering;
 use crate::kernel::envelope::Envelope;
 
 #[derive(Debug, Clone)]
-pub struct LocalActorRef<M: Message> {
+pub struct TypedActorRef<M: Message> {
   extended_cell: ExtendedCell<M>,
 }
 
-impl<M: Message> ToActorRef for LocalActorRef<M> {
+impl<M: Message> ToActorRef for TypedActorRef<M> {
   fn to_actor_ref<'a>(self: Arc<Self>) -> Arc<dyn ActorRef + 'a>
   where
     Self: 'a,
@@ -22,14 +22,14 @@ impl<M: Message> ToActorRef for LocalActorRef<M> {
   }
 }
 
-impl<M: Message> ActorRef for LocalActorRef<M> {
+impl<M: Message> ActorRef for TypedActorRef<M> {
   fn path(&self) -> &ActorPath {
     self.extended_cell.actor_cell().path()
   }
 }
 
-impl<M: Message> LocalActorRef<M> {
-  pub fn new(extended_cell: ExtendedCell<M>) -> LocalActorRef<M> {
+impl<M: Message> TypedActorRef<M> {
+  pub fn new(extended_cell: ExtendedCell<M>) -> TypedActorRef<M> {
     Self { extended_cell }
   }
 
@@ -43,7 +43,7 @@ impl<M: Message> LocalActorRef<M> {
   }
 }
 
-impl<M: Message> PartialOrd for LocalActorRef<M> {
+impl<M: Message> PartialOrd for TypedActorRef<M> {
   fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
     let x = self.path().partial_cmp(other.path());
     if x == Some(Ordering::Equal) {
@@ -60,7 +60,7 @@ impl<M: Message> PartialOrd for LocalActorRef<M> {
   }
 }
 
-impl<M: Message> PartialEq for LocalActorRef<M> {
+impl<M: Message> PartialEq for TypedActorRef<M> {
   fn eq(&self, other: &Self) -> bool {
     self.partial_cmp(other) == Some(Ordering::Equal)
   }

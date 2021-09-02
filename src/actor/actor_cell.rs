@@ -12,6 +12,8 @@ use crate::actor_system::ActorSystem;
 use crate::actor::actor_context::ActorContext;
 use crate::kernel::message::Message;
 use crate::actor::actor_ref::{ActorRef, InternalActorRef};
+use crate::actor::actor_ref_provider::ActorRefProvider;
+use crate::actor::actor_ref_factory::ActorRefFactory;
 
 
 #[derive(Debug, Clone)]
@@ -21,27 +23,39 @@ pub struct ActorCell {
 
 #[derive(Debug, Clone)]
 struct ActorCellInner {
-  system: ActorSystem,
-  my_self: Arc<dyn InternalActorRef>,
+  system: Arc<dyn ActorSystem>,
+  self_ref: Arc<dyn InternalActorRef>,
+  parent_ref: Arc<dyn InternalActorRef>,
   path: ActorPath,
   mailbox: Arc<dyn AnyMessageSender>,
   system_mailbox: MailboxSender<SystemMessage>,
 }
 
-impl<M: Message> ActorContext<M> for ActorCellInner {
-  fn my_self(&self) -> Arc<dyn ActorRef> {
-    self.my_self.clone().to_actor_ref()
+impl ActorRefFactory for ActorCell {
+  fn system(&self) -> Arc<dyn ActorSystem> {
+    self.inner.system.clone()
   }
 
-  fn parent(&self) -> Arc<dyn ActorRef> {
-    todo!()
+  fn provider(&self) -> Arc<dyn ActorRefProvider> {
+    self.inner.system.provider()
+  }
+}
+
+impl ActorContext for ActorCell {
+  fn self_ref(&self) -> Arc<dyn ActorRef> {
+    self.inner.self_ref.clone().to_actor_ref()
+  }
+
+  fn parent_ref(&self) -> Arc<dyn ActorRef> {
+    self.inner.parent_ref.clone().to_actor_ref()
   }
 }
 
 impl ActorCell {
   pub fn new(
-    system: ActorSystem,
-    my_self: Arc<dyn InternalActorRef>,
+    system: Arc<dyn ActorSystem>,
+    self_ref: Arc<dyn InternalActorRef>,
+    parent_ref: Arc<dyn InternalActorRef>,
     path: ActorPath,
     mailbox: Arc<dyn AnyMessageSender>,
     system_mailbox: MailboxSender<SystemMessage>,
@@ -49,7 +63,8 @@ impl ActorCell {
     Self {
       inner: Arc::from(ActorCellInner {
         system,
-        my_self,
+        self_ref,
+        parent_ref,
         path,
         mailbox,
         system_mailbox,
