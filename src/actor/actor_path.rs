@@ -178,12 +178,12 @@ impl ActorPath {
 
   pub fn from_uri(uri: Uri) -> Self {
     let (address, children, fragment) = Self::address_from_uri(uri).unwrap();
-    Self::of_root(address, "/".to_string()).with_children(children, fragment)
+    Self::of_root(address).with_children(children, fragment)
   }
 
   pub fn from_string(s: &str) -> Self {
     let (address, children, fragment) = Self::address_from_uri_string(s).unwrap();
-    Self::of_root(address, "/".to_string()).with_children(children, fragment)
+    Self::of_root(address).with_children(children, fragment)
   }
 
   pub fn of_child(parent: ActorPath, name: String, uid: u32) -> Self {
@@ -206,7 +206,11 @@ impl ActorPath {
     }
   }
 
-  pub fn of_root(address: Address, name: String) -> Self {
+  pub fn of_root(address: Address) -> Self {
+    Self::of_root_with_name(address, "/".to_string())
+  }
+
+  pub fn of_root_with_name(address: Address, name: String) -> Self {
     if !(name.len() == 1 || name[1..].chars().any(|c| c == '/')) {
       panic!("/ may only exist at the beginning of the root actors name, it is a path separator and is not legal in ActorPath names: [{}]", name)
     }

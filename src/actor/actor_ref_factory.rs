@@ -1,9 +1,17 @@
-use crate::actor_system::ActorSystem;
-use crate::actor::actor_ref_provider::ActorRefProvider;
+use std::fmt::Debug;
 use std::sync::Arc;
 
-pub trait ActorRefFactory {
+use crate::actor::actor_ref::{ActorRef, InternalActorRef};
+use crate::actor::actor_ref_provider::ActorRefProvider;
+use crate::actor_system::ActorSystem;
+
+pub trait ActorRefFactory: Debug + Send + Sync {
   fn system(&self) -> Arc<dyn ActorSystem>;
   fn provider(&self) -> Arc<dyn ActorRefProvider>;
   // dispatcher()
+  fn guardian(&self) -> Arc<dyn InternalActorRef>;
+  fn lookup_root(&self) -> Arc<dyn InternalActorRef>;
+
+  fn actor_of(&self) -> Arc<dyn ActorRef>;
+  fn stop(&self, actor_ref: Arc<dyn ActorRef>);
 }

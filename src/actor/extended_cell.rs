@@ -1,11 +1,12 @@
-use crate::actor::actor_cell::ActorCell;
-use crate::kernel::message::Message;
-use crate::kernel::mailbox_sender::MailboxSender;
-use crate::kernel::mailbox::Mailbox;
 use std::sync::Arc;
-use crate::actor_system::ActorSystem;
-use crate::actor::actor_ref::InternalActorRef;
+
+use crate::actor::actor_cell::ActorCell;
 use crate::actor::actor_path::ActorPath;
+use crate::actor::actor_ref::InternalActorRef;
+use crate::actor_system::ActorSystem;
+use crate::kernel::mailbox::Mailbox;
+use crate::kernel::mailbox_sender::MailboxSender;
+use crate::kernel::message::Message;
 use crate::kernel::system_message::SystemMessage;
 
 #[derive(Debug, Clone)]

@@ -1,48 +1,63 @@
+use std::cmp::Ordering;
 use std::sync::Arc;
-use crate::actor::ExtendedCell;
-use crate::kernel::message::Message;
-use crate::actor::actor_ref::{ActorRef, ToActorRef};
 
 use crate::actor::actor_path::ActorPath;
-use std::cmp::Ordering;
+use crate::actor::actor_ref::{ActorRef, ToActorRef, TypedActorRef, UntypedActorRef, ToUntypedActorRef};
+use crate::actor::actor_ref::untyped_actor_ref::Sender;
+use crate::actor::ExtendedCell;
+use crate::kernel::any_message::AnyMessage;
 use crate::kernel::envelope::Envelope;
+use crate::kernel::message::Message;
 
 #[derive(Debug, Clone)]
-pub struct TypedActorRef<M: Message> {
+pub struct DefaultTypedActorRef<M: Message> {
   extended_cell: ExtendedCell<M>,
 }
 
-impl<M: Message> ToActorRef for TypedActorRef<M> {
-  fn to_actor_ref<'a>(self: Arc<Self>) -> Arc<dyn ActorRef + 'a>
-  where
-    Self: 'a,
-  {
+impl<M: Message> ToActorRef for DefaultTypedActorRef<M> {
+  fn to_actor_ref<'a>(self: Arc<Self>) -> Arc<dyn ActorRef + 'a> where Self: 'a {
     self
   }
 }
 
-impl<M: Message> ActorRef for TypedActorRef<M> {
+impl<M: Message> ToUntypedActorRef for DefaultTypedActorRef<M> {
+  fn to_untyped_actor_ref<'a>(self: Arc<Self>) -> Arc<dyn UntypedActorRef + 'a> where Self: 'a {
+    todo!()
+  }
+}
+
+impl<M: Message> ActorRef for DefaultTypedActorRef<M> {
+  fn name(&self) -> &str {
+    self.path().name()
+  }
+
   fn path(&self) -> &ActorPath {
     self.extended_cell.actor_cell().path()
   }
 }
 
-impl<M: Message> TypedActorRef<M> {
-  pub fn new(extended_cell: ExtendedCell<M>) -> TypedActorRef<M> {
+impl<M: Message> TypedActorRef<M> for DefaultTypedActorRef<M> {
+  fn tell(&self, message: M) {
+    let envelope = Envelope::new(message, None);
+    self
+      .extended_cell
+      .mailbox_sender()
+      .try_enqueue(envelope)
+      .unwrap();
+  }
+}
+
+impl<M: Message> DefaultTypedActorRef<M> {
+  pub fn new(extended_cell: ExtendedCell<M>) -> DefaultTypedActorRef<M> {
     Self { extended_cell }
   }
 
   pub fn extended_cell(&self) -> &ExtendedCell<M> {
     &self.extended_cell
   }
-
-  pub fn send_message(&self, message: M) {
-    let _envelope = Envelope::new(message, None);
-    // let _ = self.cell.send_message(envelope);
-  }
 }
 
-impl<M: Message> PartialOrd for TypedActorRef<M> {
+impl<M: Message> PartialOrd for DefaultTypedActorRef<M> {
   fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
     let x = self.path().partial_cmp(other.path());
     if x == Some(Ordering::Equal) {
@@ -59,7 +74,7 @@ impl<M: Message> PartialOrd for TypedActorRef<M> {
   }
 }
 
-impl<M: Message> PartialEq for TypedActorRef<M> {
+impl<M: Message> PartialEq for DefaultTypedActorRef<M> {
   fn eq(&self, other: &Self) -> bool {
     self.partial_cmp(other) == Some(Ordering::Equal)
   }

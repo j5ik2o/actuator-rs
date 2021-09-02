@@ -15,7 +15,7 @@ impl From<()> for AnyEnqueueError {
 }
 
 pub trait AnyMessageSender: Debug + Send + Sync {
-  fn try_any_enqueue(&self, msg: &mut AnyMessage, sender: Sender) -> Result<(), AnyEnqueueError>;
+  fn try_enqueue_any(&self, msg: AnyMessage, sender: Sender) -> Result<(), AnyEnqueueError>;
 
   fn set_as_scheduled(&mut self) -> bool;
   fn set_as_idle(&mut self) -> bool;
@@ -27,7 +27,12 @@ pub trait AnyMessageSender: Debug + Send + Sync {
 }
 
 impl<M: Message> AnyMessageSender for MailboxSender<M> {
-  fn try_any_enqueue(&self, msg: &mut AnyMessage, sender: Sender) -> Result<(), AnyEnqueueError> {
+  fn try_enqueue_any(
+    &self,
+    any_message: AnyMessage,
+    sender: Sender,
+  ) -> Result<(), AnyEnqueueError> {
+    let mut msg = any_message;
     let actual = msg.take().map_err(|_| AnyEnqueueError)?;
     let msg = Envelope {
       message: actual,
