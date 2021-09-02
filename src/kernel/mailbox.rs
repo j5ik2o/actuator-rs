@@ -233,8 +233,10 @@ impl<M: Message> Mailbox<M> {
     if self.should_process_message() {
       let next = self.dequeue_opt();
       if next.is_some() {
-        let _inner = self.inner.lock().unwrap();
-        // inner.actor.invoke(next.unwrap())
+        let inner = self.inner.lock().unwrap();
+        if let Some(a) = inner.actor.as_ref() {
+          a.invoke(next.unwrap())
+        }
       }
     }
   }

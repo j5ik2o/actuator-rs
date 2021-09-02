@@ -8,6 +8,7 @@ use crate::kernel::mailbox::Mailbox;
 use crate::kernel::mailbox_sender::MailboxSender;
 use crate::kernel::message::Message;
 use crate::kernel::system_message::SystemMessage;
+use crate::kernel::envelope::Envelope;
 
 #[derive(Debug, Clone)]
 pub struct ExtendedCell<M: Message> {
@@ -16,6 +17,13 @@ pub struct ExtendedCell<M: Message> {
 }
 
 impl<M: Message> ExtendedCell<M> {
+  pub fn from_actor_cell(actor_cell: ActorCell, mailbox_sender: MailboxSender<M>) -> Self {
+    Self {
+      actor_cell,
+      mailbox_sender,
+    }
+  }
+
   pub fn new(
     system: Arc<dyn ActorSystem>,
     self_ref: Arc<dyn InternalActorRef>,
@@ -45,6 +53,9 @@ impl<M: Message> ExtendedCell<M> {
     &self.mailbox_sender
   }
 
+  pub fn invoke(&self, message: Envelope<M>) {
+    todo!()
+  }
   // pub(crate) fn send_msg(&self, msg: Envelope<M>) -> MsgResult<Envelope<M>> {
   //
   // }

@@ -53,7 +53,7 @@ pub trait ActorRef: ToActorRef + Debug + Send + Sync {
   fn path(&self) -> &ActorPath;
 }
 
-pub trait UntypedActorRef: ActorRef {
+pub trait UntypedActorRef: ToUntypedActorRef + ActorRef {
   fn tell(&self, msg: AnyMessage, sender: Sender);
 }
 

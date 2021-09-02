@@ -13,6 +13,10 @@ impl<M: Message> MailboxSender<M> {
     Self { mailbox }
   }
 
+  pub fn to_mailbox(&self) -> &Mailbox<M> {
+    &self.mailbox
+  }
+
   pub fn try_enqueue(&self, msg: Envelope<M>) -> Result<()> {
     self.mailbox.try_enqueue(msg)
   }

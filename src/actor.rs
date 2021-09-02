@@ -14,6 +14,7 @@ pub mod address;
 #[cfg(test)]
 mod address_test;
 pub mod cell;
+mod children;
 pub mod extended_cell;
 
 pub trait Actor: Send + Sync + 'static {

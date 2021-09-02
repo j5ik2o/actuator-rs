@@ -15,3 +15,5 @@ pub trait ActorRefFactory: Debug + Send + Sync {
   fn actor_of(&self) -> Arc<dyn ActorRef>;
   fn stop(&self, actor_ref: Arc<dyn ActorRef>);
 }
+
+pub trait TypedActorRefFactory: Debug + Send + Sync {}

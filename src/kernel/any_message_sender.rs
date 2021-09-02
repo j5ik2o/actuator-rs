@@ -4,6 +4,7 @@ use crate::kernel::envelope::Envelope;
 use crate::kernel::mailbox_sender::MailboxSender;
 use crate::kernel::message::Message;
 use std::fmt::Debug;
+use crate::kernel::mailbox::Mailbox;
 
 #[derive(Debug)]
 pub struct AnyEnqueueError;

@@ -11,6 +11,9 @@ use crate::kernel::any_message_sender::AnyMessageSender;
 use crate::kernel::mailbox_sender::MailboxSender;
 use crate::kernel::message::Message;
 use crate::kernel::system_message::SystemMessage;
+use crate::actor::children::Children;
+use crate::actor::ExtendedCell;
+use crate::kernel::mailbox::Mailbox;
 
 #[derive(Debug, Clone)]
 pub struct ActorCell {
@@ -23,8 +26,52 @@ struct ActorCellInner {
   self_ref: Arc<dyn InternalActorRef>,
   parent_ref: Arc<dyn InternalActorRef>,
   path: ActorPath,
+  children: Children,
   mailbox: Arc<dyn AnyMessageSender>,
   system_mailbox: MailboxSender<SystemMessage>,
+}
+
+impl ActorCell {
+  pub fn to_extended_cell<M: Message>(self, mailbox_sender: MailboxSender<M>) -> ExtendedCell<M> {
+    ExtendedCell::from_actor_cell(self, mailbox_sender)
+  }
+
+  pub fn new(
+    system: Arc<dyn ActorSystem>,
+    self_ref: Arc<dyn InternalActorRef>,
+    parent_ref: Arc<dyn InternalActorRef>,
+    path: ActorPath,
+    mailbox: Arc<dyn AnyMessageSender>,
+    system_mailbox: MailboxSender<SystemMessage>,
+  ) -> Self {
+    Self {
+      inner: Arc::from(ActorCellInner {
+        system,
+        self_ref,
+        parent_ref,
+        path,
+        children: Children::new(),
+        mailbox,
+        system_mailbox,
+      }),
+    }
+  }
+
+  pub fn path(&self) -> &ActorPath {
+    &self.inner.path
+  }
+
+  pub fn mailbox(&self) -> Arc<dyn AnyMessageSender> {
+    self.inner.mailbox.clone()
+  }
+
+  pub fn mailbox_for_system(&self) -> MailboxSender<SystemMessage> {
+    self.inner.system_mailbox.clone()
+  }
+
+  // pub(crate) fn kernel(&self) -> &KernelRef {
+  //   self.inner.kernel.as_ref().unwrap()
+  // }
 }
 
 impl ActorRefFactory for ActorCell {
@@ -59,15 +106,20 @@ impl ActorContext for ActorCell {
   }
 
   fn parent_ref(&self) -> Arc<dyn UntypedActorRef> {
-    self.inner.parent_ref.clone().to_actor_ref()
+    self.inner.parent_ref.clone().to_untyped_actor_ref()
   }
 
-  fn children(&self) -> Vec<Arc<dyn UntypedActorRef>> {
-    todo!()
+  fn children(&self) -> &Children {
+    &self.inner.children
   }
 
-  fn child(&self, name: &str) -> Option<Arc<dyn UntypedActorRef>> {
-    todo!()
+  fn child(&self, name: &str) -> Option<Box<dyn UntypedActorRef>> {
+    self
+      .inner
+      .children
+      .iter()
+      .find(|e| e.name() == name)
+      .map(|e| Box::new(e) as Box<dyn UntypedActorRef>)
   }
 
   fn system(&self) -> Arc<dyn ActorSystem> {
@@ -103,42 +155,4 @@ impl Cell for ActorCell {
   fn parent(&self) -> Arc<dyn InternalActorRef> {
     self.inner.parent_ref.clone()
   }
-}
-
-impl ActorCell {
-  pub fn new(
-    system: Arc<dyn ActorSystem>,
-    self_ref: Arc<dyn InternalActorRef>,
-    parent_ref: Arc<dyn InternalActorRef>,
-    path: ActorPath,
-    mailbox: Arc<dyn AnyMessageSender>,
-    system_mailbox: MailboxSender<SystemMessage>,
-  ) -> Self {
-    Self {
-      inner: Arc::from(ActorCellInner {
-        system,
-        self_ref,
-        parent_ref,
-        path,
-        mailbox,
-        system_mailbox,
-      }),
-    }
-  }
-
-  pub fn path(&self) -> &ActorPath {
-    &self.inner.path
-  }
-
-  pub fn mailbox(&self) -> Arc<dyn AnyMessageSender> {
-    self.inner.mailbox.clone()
-  }
-
-  pub fn mailbox_for_system(&self) -> MailboxSender<SystemMessage> {
-    self.inner.system_mailbox.clone()
-  }
-
-  // pub(crate) fn kernel(&self) -> &KernelRef {
-  //   self.inner.kernel.as_ref().unwrap()
-  // }
 }
