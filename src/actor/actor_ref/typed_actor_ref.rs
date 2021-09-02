@@ -3,7 +3,6 @@ use crate::actor::ExtendedCell;
 use crate::kernel::message::Message;
 use crate::actor::actor_ref::{ActorRef, ToActorRef};
 
-
 use crate::actor::actor_path::ActorPath;
 use std::cmp::Ordering;
 use crate::kernel::envelope::Envelope;

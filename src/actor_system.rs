@@ -6,7 +6,6 @@ pub trait ActorSystem: Debug + Send + Sync {
   fn provider(&self) -> Arc<dyn ActorRefProvider>;
 }
 
-
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct DefaultActorSystem {
