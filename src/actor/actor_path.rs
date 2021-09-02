@@ -116,15 +116,15 @@ impl Display for ActorPath {
   }
 }
 
-#[derive(Debug,Clone)]
-pub struct Children{ head: String, tail: Vec<String> }
+#[derive(Debug, Clone)]
+pub struct Children {
+  head: String,
+  tail: Vec<String>,
+}
 
 impl Children {
   pub fn new(head: String, tail: Vec<String>) -> Self {
-    Self{
-      head,
-      tail,
-    }
+    Self { head, tail }
   }
 
   pub fn head(&self) -> &String {
@@ -143,7 +143,6 @@ impl Children {
 }
 
 impl ActorPath {
-
   fn address_from_uri_string(s: &str) -> Option<(Address, Children, Option<Fragment>)> {
     Uri::parse(s)
       .ok()
@@ -167,7 +166,7 @@ impl ActorPath {
           Children::new(head.clone(), tail.to_vec()),
           uri.fragment().cloned(),
         ))
-      },
+      }
       (s, Some(un), None, None) => {
         let (head, tail) = uri.path().parts().split_first().unwrap();
         Some((
@@ -175,7 +174,7 @@ impl ActorPath {
           Children::new(head.clone(), tail.to_vec()),
           uri.fragment().cloned(),
         ))
-      },
+      }
       _ => None,
     }
   }
@@ -393,4 +392,3 @@ fn test_cmp_not_equal_3() {
   actor_path2.hash(&mut hasher2);
   assert_ne!(hasher1.finish(), hasher2.finish());
 }
-

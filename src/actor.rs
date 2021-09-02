@@ -1,15 +1,17 @@
 pub use extended_cell::*;
+
 use crate::kernel::message::Message;
 
 pub mod actor_cell;
+pub mod actor_context;
 pub mod actor_path;
 pub mod actor_ref;
+pub mod actor_ref_factory;
+pub mod actor_ref_provider;
 pub mod address;
 #[cfg(test)]
 mod address_test;
-pub mod context;
 pub mod extended_cell;
-pub mod internal_actor_ref;
 
 pub trait Actor: Send + Sync + 'static {
   type Msg: Message;

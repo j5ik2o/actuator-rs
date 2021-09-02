@@ -1,5 +1,5 @@
 #[allow(dead_code)]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ActorSystem {
   debug: bool,
 }

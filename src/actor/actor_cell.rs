@@ -8,6 +8,11 @@ use crate::actor::actor_path::ActorPath;
 use crate::kernel::any_message_sender::AnyMessageSender;
 use crate::kernel::mailbox_sender::MailboxSender;
 use crate::kernel::system_message::SystemMessage;
+use crate::actor_system::ActorSystem;
+use crate::actor::actor_context::ActorContext;
+use crate::kernel::message::Message;
+use crate::actor::actor_ref::{ActorRef, InternalActorRef};
+use std::ops::Deref;
 
 #[derive(Debug, Clone)]
 pub struct ActorCell {
@@ -16,40 +21,35 @@ pub struct ActorCell {
 
 #[derive(Debug, Clone)]
 struct ActorCellInner {
+  system: ActorSystem,
+  my_self: Arc<dyn InternalActorRef>,
   path: ActorPath,
   mailbox: Arc<dyn AnyMessageSender>,
   system_mailbox: MailboxSender<SystemMessage>,
 }
 
+impl<M: Message> ActorContext<M> for ActorCellInner {
+  fn my_self(&self) -> Arc<dyn ActorRef> {
+    self.my_self.clone().to_actor_ref()
+  }
+
+  fn parent(&self) -> Arc<dyn ActorRef> {
+    todo!()
+  }
+}
+
 impl ActorCell {
-  // fn new_uid() -> u32 {
-  //   let mut rng = rand::thread_rng();
-  //   let uid = rng.next_u32();
-  //   uid
-  // }
-
-  // pub fn split_name_and_uid(name: String) -> (String, u32) {
-  //   let result = name
-  //     .chars()
-  //     .enumerate()
-  //     .find(|(_, c)| *c == '#')
-  //     .map(|(idx, _)| idx);
-  //   result
-  //     .map(|i| {
-  //       let s = name[0..1].to_string();
-  //       let i = name[i..].to_string();
-  //       (s, u32::from_str(&i).unwrap())
-  //     })
-  //     .unwrap_or((name, 0))
-  // }
-
   pub fn new(
+    system: ActorSystem,
+    my_self: Arc<dyn InternalActorRef>,
     path: ActorPath,
     mailbox: Arc<dyn AnyMessageSender>,
     system_mailbox: MailboxSender<SystemMessage>,
   ) -> Self {
     Self {
       inner: Arc::from(ActorCellInner {
+        system,
+        my_self,
         path,
         mailbox,
         system_mailbox,

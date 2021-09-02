@@ -1,4 +1,5 @@
 use crate::actor::actor_cell::ActorCell;
+use crate::kernel::message::Message;
 
 #[derive(Debug, Clone)]
 pub struct InternalActorRef {
