@@ -9,7 +9,6 @@ use uri_rs::{Uri, Fragment};
 
 
 use crate::actor::address::Address;
-use fasthash::*;
 use std::collections::hash_map::DefaultHasher;
 
 
