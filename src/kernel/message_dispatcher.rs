@@ -3,6 +3,10 @@ use std::marker::PhantomData;
 use crate::actor::actor_cell::ActorCell;
 use crate::kernel::message::Message;
 
+
+pub trait MessageDispatcherConfigurator {}
+
+
 pub struct MessageDispatcher<M: Message> {
   _phantom_data: PhantomData<M>,
 }

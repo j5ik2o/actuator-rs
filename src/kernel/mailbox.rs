@@ -234,8 +234,8 @@ impl<M: Message> Mailbox<M> {
       let next = self.dequeue_opt();
       if next.is_some() {
         let inner = self.inner.lock().unwrap();
-        if let Some(a) = inner.actor.as_ref() {
-          a.invoke(next.unwrap())
+        if let Some(actor) = inner.actor.as_ref() {
+          actor.invoke(next.unwrap())
         }
       }
     }

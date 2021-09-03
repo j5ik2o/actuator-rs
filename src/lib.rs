@@ -1,7 +1,8 @@
 #[allow(dead_code)]
 pub mod actor;
-mod actor_system;
-mod kernel;
+pub mod actor_system;
+pub mod kernel;
+pub mod config;
 
 #[macro_use]
 extern crate log;
