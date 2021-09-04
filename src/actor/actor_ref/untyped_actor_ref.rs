@@ -22,18 +22,20 @@ pub type Sender = Option<LocalActorRef>;
 
 impl LocalActorRef {
   pub fn new(system: ActorSystemArc) -> LocalActorRef {
-    let actor_cell = ActorCell::new(system);
-    let inner_arc = Arc::new(Mutex::new(LocalActorRefInner { actor_cell }));
-    let actor_ref = Self {
-      inner: inner_arc.clone(),
+    // LocalActorRefインスタンスを生成する
+    let local_actor_ref = Self {
+      inner: Arc::new(Mutex::new(LocalActorRefInner { actor_cell: ActorCell::new(system) })),
     };
-    let cloned_actor_ref = actor_ref.clone();
-    let actor_ref_arc = Arc::new(actor_ref);
-    let mut actor_ref_inner = actor_ref_arc.inner.lock().unwrap();
-    actor_ref_inner
+    // 同じLocalRefInnerインスタンスへの参照を持つ新しいLocalActorRefインスタンスを生成する
+    let cloned_local_actor_ref = local_actor_ref.clone();
+    // local_actor_refはこの時点で消費されるので使えなくなる
+    let local_actor_ref_arc = Arc::new(local_actor_ref);
+    // ロックを獲得してLocalActorRefInnerのself_refを更新する。更新が完了するとcloned_local_actor_refとinnerのself_refが同じ値になる
+    let mut local_actor_ref_inner = local_actor_ref_arc.inner.lock().unwrap();
+    local_actor_ref_inner
       .actor_cell
-      .set_self_ref(actor_ref_arc.clone());
-    cloned_actor_ref
+      .set_self_ref(local_actor_ref_arc.clone());
+    cloned_local_actor_ref
   }
 }
 
@@ -98,5 +100,19 @@ impl InternalActorRef for LocalActorRef {
 
   fn is_terminated(&self) -> bool {
     todo!()
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::actor_system::LocalActorSystem;
+  use crate::actor::actor_ref::untyped_actor_ref::LocalActorRef;
+  use std::sync::Arc;
+
+  #[test]
+  fn test_new() {
+    let system = Arc::new(LocalActorSystem::default());
+    let actor_ref = LocalActorRef::new(system);
+    println!("{:?}", actor_ref);
   }
 }
