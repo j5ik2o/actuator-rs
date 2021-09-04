@@ -5,8 +5,11 @@ use crate::actor::actor_ref::untyped_actor_ref::Sender;
 use crate::kernel::any_message::AnyMessage;
 
 use crate::actor::actor_ref::ToActorRef;
+use std::sync::Arc;
 
 pub trait MessageDispatcherConfigurator {}
+
+pub type  MessageDispatcherArc = Arc<dyn MessageDispatcher>;
 
 pub trait MessageDispatcher {
   fn id(&self) -> &str;

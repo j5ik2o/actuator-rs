@@ -15,6 +15,8 @@ use crate::kernel::any_message_sender::{AnyMessageSenderArc};
 
 use crate::kernel::mailbox_sender::MailboxSender;
 use crate::kernel::message::Message;
+use crate::actor::actor_path::ActorPath;
+use crate::kernel::message_dispatcher::{MessageDispatcher, MessageDispatcherArc};
 
 #[derive(Debug, Clone)]
 pub struct ActorCell {
@@ -25,11 +27,8 @@ pub struct ActorCell {
 struct ActorCellInner {
   system: ActorSystemArc,
   self_ref: Option<InternalActorRefArc>,
+  // message_dispatcher: MessageDispatcherArc,
   // parent_ref: Arc<dyn InternalActorRef>,
-  // path: ActorPath,
-  children: Children,
-  // mailbox: Arc<dyn AnyMessageSender>,
-  // system_mailbox: MailboxSender<SystemMessage>,
 }
 
 impl ActorCell {
@@ -45,7 +44,6 @@ impl ActorCell {
   pub fn new(
     system: ActorSystemArc,
     // parent_ref: Arc<dyn InternalActorRef>,
-    // path: ActorPath,
     //   mailbox: Arc<dyn AnyMessageSender>,
     //   system_mailbox: MailboxSender<SystemMessage>,
   ) -> Self {
@@ -55,16 +53,16 @@ impl ActorCell {
         self_ref: None,
         // parent_ref,
         // path,
-        children: Children::new(),
         //      mailbox,
         //      system_mailbox,
       })),
     }
   }
 
-  // pub fn path(&self) -> &ActorPath {
-  //   &self.inner.path
-  // }
+  pub fn path(&self) -> ActorPath {
+    let inner = self.inner.lock().unwrap();
+    inner.self_ref.as_ref().unwrap().path().clone()
+  }
 
   pub fn mailbox(&self) -> AnyMessageSenderArc {
     todo!()
@@ -130,18 +128,23 @@ impl ActorContext for ActorCell {
   }
 
   fn children(&self) -> Children {
-    let inner = self.inner.lock().unwrap();
-    inner.children.clone()
+    todo!()
   }
 
+  // fn children(&self) -> Children {
+  //   let inner = self.inner.lock().unwrap();
+  //   inner.children.clone()
+  // }
+
   fn child(&self, name: &str) -> Option<Box<dyn UntypedActorRef>> {
-    let inner = self.inner.lock().unwrap();
-    let x = inner
-      .children
-      .iter()
-      .find(|e| e.name() == name)
-      .map(|e| Box::new(e) as Box<dyn UntypedActorRef>);
-    x
+    todo!()
+    // let inner = self.inner.lock().unwrap();
+    // let x = inner
+    //   .children
+    //   .iter()
+    //   .find(|e| e.name() == name)
+    //   .map(|e| Box::new(e) as Box<dyn UntypedActorRef>);
+    // x
   }
 
   fn system(&self) -> Arc<dyn ActorSystem> {
