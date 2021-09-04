@@ -1,11 +1,12 @@
 use std::fmt::Debug;
+use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::sync::mpsc::Sender;
-use std::sync::Mutex;
 
 use anyhow::Result;
 use thiserror::Error;
 
+use crate::actor::actor_ref::ActorRef;
 use crate::kernel::envelope::Envelope;
 use crate::kernel::message::Message;
 use crate::kernel::queue::{MessageSize, QueueReader, QueueWriter};
@@ -101,7 +102,7 @@ impl<M: Message> QueueWriterInMPSC<M> {
 }
 
 impl<M: Message> QueueWriter<M> for QueueWriterInMPSC<M> {
-  fn try_enqueue(&self, msg: Envelope<M>) -> Result<()> {
+  fn try_enqueue(&self, receiver: Option<Arc<dyn ActorRef>>, msg: Envelope<M>) -> Result<()> {
     match self.tx.send(msg) {
       Ok(_) => Ok(()),
       Err(e) => Err(EnqueueError::SendError(e.0))?,

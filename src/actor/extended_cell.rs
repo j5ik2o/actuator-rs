@@ -4,11 +4,11 @@ use crate::actor::actor_cell::ActorCell;
 use crate::actor::actor_path::ActorPath;
 use crate::actor::actor_ref::InternalActorRef;
 use crate::actor_system::ActorSystem;
+use crate::kernel::envelope::Envelope;
 use crate::kernel::mailbox::Mailbox;
 use crate::kernel::mailbox_sender::MailboxSender;
 use crate::kernel::message::Message;
 use crate::kernel::system_message::SystemMessage;
-use crate::kernel::envelope::Envelope;
 
 #[derive(Debug, Clone)]
 pub struct ExtendedCell<M: Message> {
@@ -28,18 +28,18 @@ impl<M: Message> ExtendedCell<M> {
     system: Arc<dyn ActorSystem>,
     self_ref: Arc<dyn InternalActorRef>,
     parent_ref: Arc<dyn InternalActorRef>,
-    path: ActorPath,
+//    path: ActorPath,
     mailbox: Arc<Mailbox<M>>,
-    system_mailbox: MailboxSender<SystemMessage>,
+//    system_mailbox: MailboxSender<SystemMessage>,
   ) -> Self {
     Self {
       actor_cell: ActorCell::new(
         system,
         self_ref,
-        parent_ref,
-        path,
-        Arc::new(mailbox.new_sender()),
-        system_mailbox,
+        // parent_ref,
+        // path,
+        // Arc::new(mailbox.new_sender()),
+        // system_mailbox,
       ),
       mailbox_sender: mailbox.new_sender(),
     }

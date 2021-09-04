@@ -3,9 +3,10 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use anyhow::Result;
 
+use crate::actor::actor_cell::ActorCell;
+use crate::actor::actor_ref::ActorRef;
 use crate::actor::ExtendedCell;
 use crate::kernel::{MailboxType, new_mailbox};
-
 use crate::kernel::envelope::Envelope;
 use crate::kernel::mailbox_sender::MailboxSender;
 use crate::kernel::mailbox_status::MailboxStatus;
@@ -70,6 +71,11 @@ impl<M: Message> Mailbox<M> {
   pub fn set_actor(&mut self, cell: ExtendedCell<M>) {
     let mut inner = self.inner.lock().unwrap();
     inner.actor = Some(cell)
+  }
+
+  pub fn get_actor(&self) -> Option<ExtendedCell<M>> {
+    let inner = self.inner.lock().unwrap();
+    inner.actor.clone()
   }
 
   pub fn should_process_message(&self) -> bool {
@@ -246,14 +252,14 @@ impl<M: Message> Mailbox<M> {
     inner.count = 0
   }
 
-  pub fn try_enqueue(&self, msg: Envelope<M>) -> Result<()> {
+  pub fn try_enqueue(&self, actor_ref: Arc<dyn ActorRef>, msg: Envelope<M>) -> Result<()> {
     let inner = self.inner.lock().unwrap();
-    inner.queue_writer.try_enqueue(msg)
+    inner.queue_writer.try_enqueue(Some(actor_ref), msg)
   }
 
-  pub fn try_enqueue_for_system(&self, msg: Envelope<M>) -> Result<()> {
+  pub fn try_enqueue_for_system(&self, actor_ref: Arc<dyn ActorRef>, msg: Envelope<M>) -> Result<()> {
     let inner = self.inner.lock().unwrap();
-    inner.system_queue_writer.try_enqueue(msg)
+    inner.system_queue_writer.try_enqueue(Some(actor_ref), msg)
   }
 
   pub fn dequeue(&mut self) -> Envelope<M> {

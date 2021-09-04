@@ -1,11 +1,13 @@
 use std::collections::VecDeque;
 use std::fmt::Debug;
+use std::sync::Arc;
 use std::sync::mpsc::*;
 
 use anyhow::Result;
 
 pub use mpsc::*;
 
+use crate::actor::actor_ref::ActorRef;
 use crate::kernel::envelope::Envelope;
 use crate::kernel::message::Message;
 use crate::kernel::queue::vec_deque::QueueInVecQueue;
@@ -32,7 +34,7 @@ pub trait QueueReader<M: Message>: Debug {
 }
 
 pub trait QueueWriter<M: Message>: Debug {
-  fn try_enqueue(&self, msg: Envelope<M>) -> Result<()>;
+  fn try_enqueue(&self, receiver: Option<Arc<dyn ActorRef>>, msg: Envelope<M>) -> Result<()>;
 }
 
 pub(crate) fn new_vec_queue<M: Message>() -> (impl QueueWriter<M>, impl QueueReader<M>) {
@@ -61,7 +63,7 @@ mod tests {
   fn test_new_vec_queue() {
     let (qw, qr) = new_vec_queue();
     let expected_message = Envelope::new(Counter(1), None);
-    qw.try_enqueue(expected_message.clone()).unwrap();
+    qw.try_enqueue(None, expected_message.clone()).unwrap();
 
     match qr.number_of_messages() {
       MessageSize::Limit(n) => assert!(n > 0),
@@ -75,7 +77,7 @@ mod tests {
   fn test_new_mpsc_queue() {
     let (qw, qr) = new_mpsc_queue();
     let expected_message = Envelope::new(Counter(1), None);
-    qw.try_enqueue(expected_message.clone()).unwrap();
+    qw.try_enqueue(None, expected_message.clone()).unwrap();
     let received_message = qr.try_dequeue().unwrap_or_default().unwrap();
     assert_eq!(received_message.message, expected_message.message)
   }

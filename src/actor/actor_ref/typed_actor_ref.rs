@@ -2,13 +2,13 @@ use std::cmp::Ordering;
 use std::sync::Arc;
 
 use crate::actor::actor_path::ActorPath;
-use crate::actor::actor_ref::{ActorRef, ToActorRef, TypedActorRef, UntypedActorRef, ToUntypedActorRef};
+use crate::actor::actor_ref::{ActorRef, ToActorRef, ToUntypedActorRef, TypedActorRef, UntypedActorRef};
 use crate::actor::actor_ref::untyped_actor_ref::Sender;
 use crate::actor::ExtendedCell;
 use crate::kernel::any_message::AnyMessage;
+use crate::kernel::any_message_sender::AnyMessageSender;
 use crate::kernel::envelope::Envelope;
 use crate::kernel::message::Message;
-use crate::kernel::any_message_sender::AnyMessageSender;
 
 #[derive(Debug, Clone)]
 pub struct DefaultTypedActorRef<M: Message> {
@@ -24,6 +24,7 @@ impl<M: Message> DefaultTypedActorRef<M> {
     &self.extended_cell
   }
 }
+
 
 impl<M: Message> ToActorRef for DefaultTypedActorRef<M> {
   fn to_actor_ref<'a>(self: Arc<Self>) -> Arc<dyn ActorRef + 'a>
@@ -49,28 +50,31 @@ impl<M: Message> ActorRef for DefaultTypedActorRef<M> {
   }
 
   fn path(&self) -> &ActorPath {
-    self.extended_cell.actor_cell().path()
+    todo!()
+    // self.extended_cell.actor_cell().path()
   }
 }
 
 impl<M: Message> UntypedActorRef for DefaultTypedActorRef<M> {
-  fn tell(&self, msg: AnyMessage, sender: Sender) {
+  fn tell(self: Arc<Self>, msg: AnyMessage, sender: Sender) {
+    let s = self.clone();
     self
-      .extended_cell
-      .mailbox_sender()
-      .try_enqueue_any(msg, sender)
-      .unwrap();
+        .extended_cell
+        .mailbox_sender()
+        .try_enqueue_any(s, msg, sender)
+        .unwrap();
   }
 }
 
 impl<M: Message> TypedActorRef<M> for DefaultTypedActorRef<M> {
-  fn tell(&self, message: M) {
+  fn tell(self: Arc<Self>, message: M) {
     let envelope = Envelope::new(message, None);
+    let s = self.clone();
     self
-      .extended_cell
-      .mailbox_sender()
-      .try_enqueue(envelope)
-      .unwrap();
+        .extended_cell
+        .mailbox_sender()
+        .try_enqueue(s, envelope)
+        .unwrap();
   }
 }
 

@@ -16,7 +16,20 @@ pub struct LocalActorSystem {
   name: String,
 }
 
-impl LocalActorSystem {}
+impl Default for LocalActorSystem {
+  fn default() -> Self {
+    Self::new(&String::default(), bool::default())
+  }
+}
+
+impl LocalActorSystem {
+  pub fn new(name: &str, debug: bool) -> Self {
+    Self {
+      debug,
+      name: name.to_string(),
+    }
+  }
+}
 
 impl ActorRefFactory for LocalActorSystem {
   fn system(&self) -> Arc<dyn ActorSystem> {

@@ -6,8 +6,8 @@ use crate::actor::actor_path::ActorPath;
 use crate::actor::actor_ref::untyped_actor_ref::Sender;
 use crate::actor::actor_ref_provider::ActorRefProvider;
 use crate::kernel::any_message::AnyMessage;
-use crate::kernel::system_message::SystemMessage;
 use crate::kernel::message::Message;
+use crate::kernel::system_message::SystemMessage;
 
 pub mod typed_actor_ref;
 pub mod untyped_actor_ref;
@@ -54,7 +54,7 @@ pub trait ActorRef: ToActorRef + Debug + Send + Sync {
 }
 
 pub trait UntypedActorRef: ToUntypedActorRef + ActorRef {
-  fn tell(&self, msg: AnyMessage, sender: Sender);
+  fn tell(self: Arc<Self>, msg: AnyMessage, sender: Sender);
 }
 
 pub trait InternalActorRef: UntypedActorRef {
@@ -74,5 +74,5 @@ pub trait InternalActorRef: UntypedActorRef {
 }
 
 pub trait TypedActorRef<M: Message>: ActorRef {
-  fn tell(&self, message: M);
+  fn tell(self: Arc<Self>, message: M);
 }

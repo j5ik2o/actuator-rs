@@ -1,4 +1,8 @@
+use std::sync::Arc;
+
 use anyhow::Result;
+
+use crate::actor::actor_ref::ActorRef;
 use crate::kernel::envelope::Envelope;
 use crate::kernel::mailbox::Mailbox;
 use crate::kernel::message::Message;
@@ -17,8 +21,8 @@ impl<M: Message> MailboxSender<M> {
     &self.mailbox
   }
 
-  pub fn try_enqueue(&self, msg: Envelope<M>) -> Result<()> {
-    self.mailbox.try_enqueue(msg)
+  pub fn try_enqueue(&self, actor_ref: Arc<dyn ActorRef>, msg: Envelope<M>) -> Result<()> {
+    self.mailbox.try_enqueue(actor_ref, msg)
   }
 
   pub fn set_as_scheduled(&mut self) -> bool {

@@ -1,19 +1,18 @@
 use std::sync::Arc;
 
 use crate::actor::actor_context::ActorContext;
-use crate::actor::actor_path::ActorPath;
 use crate::actor::actor_ref::{ActorRef, InternalActorRef, ToUntypedActorRef, UntypedActorRef};
 use crate::actor::actor_ref_factory::ActorRefFactory;
 use crate::actor::actor_ref_provider::ActorRefProvider;
 use crate::actor::cell::Cell;
+use crate::actor::children::Children;
+use crate::actor::ExtendedCell;
 use crate::actor_system::ActorSystem;
 use crate::kernel::any_message_sender::AnyMessageSender;
+use crate::kernel::mailbox::Mailbox;
 use crate::kernel::mailbox_sender::MailboxSender;
 use crate::kernel::message::Message;
 use crate::kernel::system_message::SystemMessage;
-use crate::actor::children::Children;
-use crate::actor::ExtendedCell;
-use crate::kernel::mailbox::Mailbox;
 
 #[derive(Debug, Clone)]
 pub struct ActorCell {
@@ -24,11 +23,11 @@ pub struct ActorCell {
 struct ActorCellInner {
   system: Arc<dyn ActorSystem>,
   self_ref: Arc<dyn InternalActorRef>,
-  parent_ref: Arc<dyn InternalActorRef>,
-  path: ActorPath,
+  // parent_ref: Arc<dyn InternalActorRef>,
+  // path: ActorPath,
   children: Children,
-  mailbox: Arc<dyn AnyMessageSender>,
-  system_mailbox: MailboxSender<SystemMessage>,
+  // mailbox: Arc<dyn AnyMessageSender>,
+  // system_mailbox: MailboxSender<SystemMessage>,
 }
 
 impl ActorCell {
@@ -39,35 +38,40 @@ impl ActorCell {
   pub fn new(
     system: Arc<dyn ActorSystem>,
     self_ref: Arc<dyn InternalActorRef>,
-    parent_ref: Arc<dyn InternalActorRef>,
-    path: ActorPath,
-    mailbox: Arc<dyn AnyMessageSender>,
-    system_mailbox: MailboxSender<SystemMessage>,
+    // parent_ref: Arc<dyn InternalActorRef>,
+    // path: ActorPath,
+    //   mailbox: Arc<dyn AnyMessageSender>,
+    //   system_mailbox: MailboxSender<SystemMessage>,
   ) -> Self {
     Self {
       inner: Arc::from(ActorCellInner {
         system,
         self_ref,
-        parent_ref,
-        path,
+        // parent_ref,
+        // path,
         children: Children::new(),
-        mailbox,
-        system_mailbox,
+        //      mailbox,
+        //      system_mailbox,
       }),
     }
   }
 
-  pub fn path(&self) -> &ActorPath {
-    &self.inner.path
-  }
+  // pub fn path(&self) -> &ActorPath {
+  //   &self.inner.path
+  // }
 
   pub fn mailbox(&self) -> Arc<dyn AnyMessageSender> {
-    self.inner.mailbox.clone()
+    todo!()
+    // self.inner.mailbox.clone()
   }
 
-  pub fn mailbox_for_system(&self) -> MailboxSender<SystemMessage> {
-    self.inner.system_mailbox.clone()
+  pub fn my_self(&self) -> Arc<dyn InternalActorRef> {
+    self.inner.self_ref.clone()
   }
+
+  // pub fn mailbox_for_system(&self) -> MailboxSender<SystemMessage> {
+  //   self.inner.system_mailbox.clone()
+  // }
 
   // pub(crate) fn kernel(&self) -> &KernelRef {
   //   self.inner.kernel.as_ref().unwrap()
@@ -106,7 +110,8 @@ impl ActorContext for ActorCell {
   }
 
   fn parent_ref(&self) -> Arc<dyn UntypedActorRef> {
-    self.inner.parent_ref.clone().to_untyped_actor_ref()
+    todo!()
+//    self.inner.parent_ref.clone().to_untyped_actor_ref()
   }
 
   fn children(&self) -> &Children {
@@ -153,6 +158,7 @@ impl Cell for ActorCell {
   }
 
   fn parent(&self) -> Arc<dyn InternalActorRef> {
-    self.inner.parent_ref.clone()
+    todo!()
+//    self.inner.parent_ref.clone()
   }
 }
