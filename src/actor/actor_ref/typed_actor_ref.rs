@@ -25,7 +25,6 @@ impl<M: Message> DefaultTypedActorRef<M> {
   }
 }
 
-
 impl<M: Message> ToActorRef for DefaultTypedActorRef<M> {
   fn to_actor_ref<'a>(self: Arc<Self>) -> Arc<dyn ActorRef + 'a>
   where
@@ -59,10 +58,10 @@ impl<M: Message> UntypedActorRef for DefaultTypedActorRef<M> {
   fn tell(self: Arc<Self>, msg: AnyMessage, sender: Sender) {
     let s = self.clone();
     self
-        .extended_cell
-        .mailbox_sender()
-        .try_enqueue_any(s, msg, sender)
-        .unwrap();
+      .extended_cell
+      .mailbox_sender()
+      .try_enqueue_any(s, msg, sender)
+      .unwrap();
   }
 }
 
@@ -71,10 +70,10 @@ impl<M: Message> TypedActorRef<M> for DefaultTypedActorRef<M> {
     let envelope = Envelope::new(message, None);
     let s = self.clone();
     self
-        .extended_cell
-        .mailbox_sender()
-        .try_enqueue(s, envelope)
-        .unwrap();
+      .extended_cell
+      .mailbox_sender()
+      .try_enqueue(s, envelope)
+      .unwrap();
   }
 }
 

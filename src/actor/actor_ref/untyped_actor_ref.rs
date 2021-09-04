@@ -1,25 +1,36 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::actor::actor_cell::ActorCell;
 use crate::actor::actor_path::ActorPath;
 use crate::actor::actor_ref::{ActorRef, InternalActorRef, UntypedActorRef};
 use crate::actor::actor_ref_provider::ActorRefProvider;
-use crate::actor_system::ActorSystem;
+use crate::actor_system::{ActorSystem, ActorSystemArc};
 use crate::kernel::any_message::AnyMessage;
 use crate::kernel::system_message::SystemMessage;
 
 #[derive(Debug, Clone)]
 pub struct LocalActorRef {
+  inner: Arc<Mutex<LocalActorRefInner>>,
+}
+
+#[derive(Debug, Clone)]
+struct LocalActorRefInner {
   actor_cell: ActorCell,
 }
 
 pub type Sender = Option<LocalActorRef>;
 
 impl LocalActorRef {
-  // pub fn new(system: Arc<dyn ActorSystem>) -> Self {
-  // let actor_cell =  ActorCell::new(system, )
-  // Self { actor_cell }
-  // }
+  pub fn new(system: ActorSystemArc) -> LocalActorRef {
+    let actor_cell = ActorCell::new(system);
+    let inner_arc = Arc::new(Mutex::new(LocalActorRefInner { actor_cell }));
+    let actor_ref = Self { inner: inner_arc.clone() };
+    let cloned_actor_ref = actor_ref.clone();
+    let actor_ref_arc = Arc::new(actor_ref);
+    let mut actor_ref_inner = actor_ref_arc.inner.lock().unwrap();
+    actor_ref_inner.actor_cell.set_self_ref(actor_ref_arc.clone());
+    cloned_actor_ref
+  }
 }
 
 impl ActorRef for LocalActorRef {
@@ -29,7 +40,7 @@ impl ActorRef for LocalActorRef {
 
   fn path(&self) -> &ActorPath {
     todo!()
-//     self.actor_cell.path()
+    //     self.actor_cell.path()
   }
 }
 

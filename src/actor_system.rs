@@ -5,6 +5,8 @@ use crate::actor::actor_ref::{ActorRef, InternalActorRef};
 use crate::actor::actor_ref_factory::ActorRefFactory;
 use crate::actor::actor_ref_provider::{ActorRefProvider, LocalActorRefProvider};
 
+pub type ActorSystemArc = Arc<dyn ActorSystem>;
+
 pub trait ActorSystem: ActorRefFactory + Debug + Send + Sync {
   fn name(&self) -> &str;
 }

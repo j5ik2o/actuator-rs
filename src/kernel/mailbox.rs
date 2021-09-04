@@ -257,7 +257,11 @@ impl<M: Message> Mailbox<M> {
     inner.queue_writer.try_enqueue(Some(actor_ref), msg)
   }
 
-  pub fn try_enqueue_for_system(&self, actor_ref: Arc<dyn ActorRef>, msg: Envelope<M>) -> Result<()> {
+  pub fn try_enqueue_for_system(
+    &self,
+    actor_ref: Arc<dyn ActorRef>,
+    msg: Envelope<M>,
+  ) -> Result<()> {
     let inner = self.inner.lock().unwrap();
     inner.system_queue_writer.try_enqueue(Some(actor_ref), msg)
   }

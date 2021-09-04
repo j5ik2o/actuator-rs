@@ -13,11 +13,11 @@ pub mod mailbox_sender;
 pub mod mailbox_status;
 #[cfg(test)]
 mod mailbox_test;
+pub mod mailboxes;
 pub mod message;
 pub mod message_dispatcher;
 pub mod queue;
 pub mod system_message;
-pub mod mailboxes;
 
 pub enum MailboxType {
   MPSC,
@@ -43,21 +43,21 @@ pub fn new_mailbox<M: Message>(mailbox_type: MailboxType, limit: u32) -> Mailbox
 
 #[cfg(test)]
 mod tests {
-    use std::env;
+  use std::env;
 
-    use super::*;
+  use super::*;
 
-    #[derive(Debug, Clone, PartialEq)]
-    struct Counter(u32);
+  #[derive(Debug, Clone, PartialEq)]
+  struct Counter(u32);
 
-    //  impl Message for Counter {}
+  //  impl Message for Counter {}
 
-    fn test(_mailbox_type: MailboxType) {
-        env::set_var("RUST_LOG", "debug");
-        // env::set_var("RUST_LOG", "trace");
-        logger::try_init();
+  fn test(_mailbox_type: MailboxType) {
+    env::set_var("RUST_LOG", "debug");
+    // env::set_var("RUST_LOG", "trace");
+    logger::try_init();
 
-        // let mailbox1 = new_mailbox(mailbox_type, 2);
+    // let mailbox1 = new_mailbox(mailbox_type, 2);
     // debug!("mailbox1 = {:?}", mailbox1);
     // let dispatcher1 = mailbox1.new_sender();
     // let expected_message1 = Envelope::new(Counter(1));

@@ -31,7 +31,7 @@ impl Children {
     self.actors.len()
   }
 
-  pub fn iter(&self) -> impl Iterator<Item=LocalActorRef> + '_ {
+  pub fn iter(&self) -> impl Iterator<Item = LocalActorRef> + '_ {
     self.actors.iter().map(|e| e.value().clone())
   }
 }

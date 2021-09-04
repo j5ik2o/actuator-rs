@@ -48,14 +48,20 @@ impl<T: InternalActorRef> ToUntypedActorRef for T {
   }
 }
 
+pub type ActorRefArc = Arc<dyn ActorRef>;
+
 pub trait ActorRef: ToActorRef + Debug + Send + Sync {
   fn name(&self) -> &str;
   fn path(&self) -> &ActorPath;
 }
 
+pub type UntypedActorRefArc = Arc<dyn UntypedActorRef>;
+
 pub trait UntypedActorRef: ToUntypedActorRef + ActorRef {
   fn tell(self: Arc<Self>, msg: AnyMessage, sender: Sender);
 }
+
+pub type InternalActorRefArc = Arc<dyn InternalActorRef>;
 
 pub trait InternalActorRef: UntypedActorRef {
   fn provider(&self) -> Arc<dyn ActorRefProvider>;

@@ -47,7 +47,11 @@ impl<M: Message> QueueReader<M> for QueueInVecQueue<M> {
 }
 
 impl<M: Message> QueueWriter<M> for QueueInVecQueue<M> {
-  fn try_enqueue(&self, receiver: Option<Arc<dyn ActorRef>>, msg: Envelope<M>) -> anyhow::Result<()> {
+  fn try_enqueue(
+    &self,
+    receiver: Option<Arc<dyn ActorRef>>,
+    msg: Envelope<M>,
+  ) -> anyhow::Result<()> {
     let mut inner = self.inner.write().unwrap();
     inner.queue.push_back(msg);
     Ok(())

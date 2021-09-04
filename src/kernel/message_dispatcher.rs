@@ -6,6 +6,7 @@ use crate::actor::actor_ref::untyped_actor_ref::Sender;
 use crate::kernel::any_message::AnyMessage;
 use crate::kernel::envelope::Envelope;
 use crate::kernel::message::Message;
+use crate::actor::actor_ref::ToActorRef;
 
 pub trait MessageDispatcherConfigurator {}
 
@@ -32,7 +33,7 @@ impl Dispatcher {
 
   fn suspend(&self, actor: &ActorCell) {
     let mbox = actor.mailbox();
-//    mbox.actor() == actor && mbox.dispatcher() == self;
+    //    mbox.actor() == actor && mbox.dispatcher() == self;
     //.suspend();
   }
 }
@@ -58,6 +59,8 @@ impl MessageDispatcher for Dispatcher {
     let mbox = receiver.mailbox();
     let receiver = mbox.actor();
     let ref_ = receiver.my_self();
-    mbox.try_enqueue_any(ref_.to_actor_ref(), invocation, sender).unwrap();
+    mbox
+      .try_enqueue_any(ref_.unwrap().to_actor_ref(), invocation, sender)
+      .unwrap();
   }
 }

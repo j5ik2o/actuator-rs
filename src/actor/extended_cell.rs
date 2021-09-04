@@ -28,14 +28,13 @@ impl<M: Message> ExtendedCell<M> {
     system: Arc<dyn ActorSystem>,
     self_ref: Arc<dyn InternalActorRef>,
     parent_ref: Arc<dyn InternalActorRef>,
-//    path: ActorPath,
+    //    path: ActorPath,
     mailbox: Arc<Mailbox<M>>,
-//    system_mailbox: MailboxSender<SystemMessage>,
+    //    system_mailbox: MailboxSender<SystemMessage>,
   ) -> Self {
     Self {
       actor_cell: ActorCell::new(
         system,
-        self_ref,
         // parent_ref,
         // path,
         // Arc::new(mailbox.new_sender()),

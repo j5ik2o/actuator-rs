@@ -20,8 +20,15 @@ impl From<()> for AnyEnqueueError {
   }
 }
 
+pub type AnyMessageSenderArc = Arc<dyn AnyMessageSender>;
+
 pub trait AnyMessageSender: Debug + Send + Sync {
-  fn try_enqueue_any(&self, receiver: Arc<dyn ActorRef>, msg: AnyMessage, sender: Sender) -> Result<(), AnyEnqueueError>;
+  fn try_enqueue_any(
+    &self,
+    receiver: Arc<dyn ActorRef>,
+    msg: AnyMessage,
+    sender: Sender,
+  ) -> Result<(), AnyEnqueueError>;
 
   fn actor(&self) -> ActorCell;
   fn dispatcher(&self) -> Arc<dyn MessageDispatcher>;

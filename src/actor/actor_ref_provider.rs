@@ -4,6 +4,8 @@ use crate::actor::actor_path::ActorPath;
 use crate::actor::actor_ref::InternalActorRef;
 use crate::actor::address::Address;
 
+pub type ActorRefProviderArc = Arc<dyn ActorRefProvider>;
+
 pub trait ActorRefProvider {
   fn root_guardian(&self) -> Arc<dyn InternalActorRef>;
   fn root_path(&self) -> ActorPath;

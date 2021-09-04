@@ -10,7 +10,7 @@ use crate::actor::children::Children;
 pub trait ActorContext: ActorRefFactory {
   fn self_ref(&self) -> Arc<dyn UntypedActorRef>;
   fn parent_ref(&self) -> Arc<dyn UntypedActorRef>;
-  fn children(&self) -> &Children;
+  fn children(&self) -> Children;
   fn child(&self, name: &str) -> Option<Box<dyn UntypedActorRef>>;
   fn system(&self) -> Arc<dyn ActorSystem>;
 }
