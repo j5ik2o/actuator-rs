@@ -6,7 +6,7 @@ use crate::actor::actor_ref::ActorRef;
 use crate::actor::actor_ref::untyped_actor_ref::Sender;
 use crate::kernel::any_message::AnyMessage;
 use crate::kernel::envelope::Envelope;
-use crate::kernel::mailbox::Mailbox;
+
 use crate::kernel::mailbox_sender::MailboxSender;
 use crate::kernel::message::Message;
 use crate::kernel::message_dispatcher::MessageDispatcher;

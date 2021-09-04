@@ -1,11 +1,3 @@
-use std::sync::Arc;
-
-use crate::actor::actor_ref::ActorRef;
-use crate::actor::ExtendedCell;
-use crate::kernel::envelope::Envelope;
-use crate::kernel::mailbox_sender::MailboxSender;
-use crate::kernel::message::Message;
-
 //
 // pub struct Dispatcher<M: Message> {
 //   msg: M,

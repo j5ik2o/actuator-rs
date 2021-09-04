@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use crate::actor::actor_ref::UntypedActorRef;
 use crate::actor::actor_ref_factory::ActorRefFactory;
-use crate::actor::actor_ref_provider::ActorRefProvider;
+
 use crate::actor_system::ActorSystem;
-use crate::kernel::message::Message;
+
 use crate::actor::children::Children;
 
 pub trait ActorContext: ActorRefFactory {

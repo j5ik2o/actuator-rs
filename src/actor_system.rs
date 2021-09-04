@@ -54,7 +54,7 @@ impl ActorRefFactory for LocalActorSystem {
     todo!()
   }
 
-  fn stop(&self, actor_ref: Arc<dyn ActorRef>) {
+  fn stop(&self, _actor_ref: Arc<dyn ActorRef>) {
     todo!()
   }
 }

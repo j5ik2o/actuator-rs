@@ -24,11 +24,15 @@ impl LocalActorRef {
   pub fn new(system: ActorSystemArc) -> LocalActorRef {
     let actor_cell = ActorCell::new(system);
     let inner_arc = Arc::new(Mutex::new(LocalActorRefInner { actor_cell }));
-    let actor_ref = Self { inner: inner_arc.clone() };
+    let actor_ref = Self {
+      inner: inner_arc.clone(),
+    };
     let cloned_actor_ref = actor_ref.clone();
     let actor_ref_arc = Arc::new(actor_ref);
     let mut actor_ref_inner = actor_ref_arc.inner.lock().unwrap();
-    actor_ref_inner.actor_cell.set_self_ref(actor_ref_arc.clone());
+    actor_ref_inner
+      .actor_cell
+      .set_self_ref(actor_ref_arc.clone());
     cloned_actor_ref
   }
 }
@@ -45,7 +49,7 @@ impl ActorRef for LocalActorRef {
 }
 
 impl UntypedActorRef for LocalActorRef {
-  fn tell(self: Arc<Self>, msg: AnyMessage, sender: Sender) {
+  fn tell(self: Arc<Self>, _msg: AnyMessage, _sender: Sender) {
     todo!()
     // self
     //   .actor_cell
@@ -76,7 +80,7 @@ impl InternalActorRef for LocalActorRef {
     todo!()
   }
 
-  fn tell_for_system(&self, message: SystemMessage) {
+  fn tell_for_system(&self, _message: SystemMessage) {
     todo!()
   }
 
@@ -84,7 +88,7 @@ impl InternalActorRef for LocalActorRef {
     todo!()
   }
 
-  fn get_child(&self, name: Vec<String>) -> Arc<dyn InternalActorRef> {
+  fn get_child(&self, _name: Vec<String>) -> Arc<dyn InternalActorRef> {
     todo!()
   }
 

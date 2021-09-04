@@ -3,7 +3,6 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use anyhow::Result;
 
-use crate::actor::actor_cell::ActorCell;
 use crate::actor::actor_ref::ActorRef;
 use crate::actor::ExtendedCell;
 use crate::kernel::{MailboxType, new_mailbox};

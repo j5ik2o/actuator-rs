@@ -6,16 +6,15 @@ use crate::actor::actor_ref::{
   UntypedActorRefArc,
 };
 use crate::actor::actor_ref_factory::ActorRefFactory;
-use crate::actor::actor_ref_provider::{ActorRefProvider, ActorRefProviderArc};
+use crate::actor::actor_ref_provider::{ActorRefProviderArc};
 use crate::actor::cell::Cell;
 use crate::actor::children::Children;
 use crate::actor::ExtendedCell;
 use crate::actor_system::{ActorSystem, ActorSystemArc};
-use crate::kernel::any_message_sender::{AnyMessageSender, AnyMessageSenderArc};
-use crate::kernel::mailbox::Mailbox;
+use crate::kernel::any_message_sender::{AnyMessageSenderArc};
+
 use crate::kernel::mailbox_sender::MailboxSender;
 use crate::kernel::message::Message;
-use crate::kernel::system_message::SystemMessage;
 
 #[derive(Debug, Clone)]
 pub struct ActorCell {
@@ -109,7 +108,7 @@ impl ActorRefFactory for ActorCell {
     todo!()
   }
 
-  fn stop(&self, actor_ref: Arc<dyn ActorRef>) {
+  fn stop(&self, _actor_ref: Arc<dyn ActorRef>) {
     todo!()
   }
 }
@@ -117,7 +116,12 @@ impl ActorRefFactory for ActorCell {
 impl ActorContext for ActorCell {
   fn self_ref(&self) -> UntypedActorRefArc {
     let inner = self.inner.lock().unwrap();
-    inner.self_ref.as_ref().unwrap().clone().to_untyped_actor_ref()
+    inner
+      .self_ref
+      .as_ref()
+      .unwrap()
+      .clone()
+      .to_untyped_actor_ref()
   }
 
   fn parent_ref(&self) -> UntypedActorRefArc {
@@ -160,11 +164,11 @@ impl Cell for ActorCell {
     todo!()
   }
 
-  fn resume(panic_by_failure: &str) {
+  fn resume(_panic_by_failure: &str) {
     todo!()
   }
 
-  fn restart(panic_message: &str) {
+  fn restart(_panic_message: &str) {
     todo!()
   }
 

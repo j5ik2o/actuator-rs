@@ -102,7 +102,7 @@ impl<M: Message> QueueWriterInMPSC<M> {
 }
 
 impl<M: Message> QueueWriter<M> for QueueWriterInMPSC<M> {
-  fn try_enqueue(&self, receiver: Option<Arc<dyn ActorRef>>, msg: Envelope<M>) -> Result<()> {
+  fn try_enqueue(&self, _receiver: Option<Arc<dyn ActorRef>>, msg: Envelope<M>) -> Result<()> {
     match self.tx.send(msg) {
       Ok(_) => Ok(()),
       Err(e) => Err(EnqueueError::SendError(e.0))?,

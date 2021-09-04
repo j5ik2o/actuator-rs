@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use crate::actor::actor_ref::{ActorRef, InternalActorRef};
 use crate::actor::actor_ref_provider::ActorRefProvider;
-use crate::actor_system::{ActorSystem, ActorSystemArc};
+use crate::actor_system::{ActorSystemArc};
 
 pub trait ActorRefFactory: Debug + Send + Sync {
   fn system(&self) -> ActorSystemArc;

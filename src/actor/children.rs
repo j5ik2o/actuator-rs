@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 
-use crate::actor::actor_ref::{ActorRef, InternalActorRef, UntypedActorRef};
+use crate::actor::actor_ref::{ActorRef};
 use crate::actor::actor_ref::untyped_actor_ref::LocalActorRef;
 
 #[derive(Debug, Clone)]
@@ -38,14 +38,6 @@ impl Children {
 
 #[cfg(test)]
 mod tests {
-  use std::sync::Arc;
-
-  use crate::actor::actor_cell::ActorCell;
-  use crate::actor::actor_path::ActorPath;
-  use crate::actor::actor_ref::untyped_actor_ref::LocalActorRef;
-  use crate::actor::children::Children;
-  use crate::actor_system::LocalActorSystem;
-  use crate::kernel::{MailboxType, new_mailbox};
 
   #[test]
   fn test_add() {

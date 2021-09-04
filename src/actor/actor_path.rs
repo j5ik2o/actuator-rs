@@ -8,7 +8,6 @@ use std::sync::Arc;
 use uri_rs::{Uri, Fragment};
 
 use crate::actor::address::Address;
-use std::collections::hash_map::DefaultHasher;
 
 #[derive(Debug, Clone)]
 pub enum ActorPath {

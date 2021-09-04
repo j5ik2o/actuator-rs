@@ -49,7 +49,7 @@ impl<M: Message> QueueReader<M> for QueueInVecQueue<M> {
 impl<M: Message> QueueWriter<M> for QueueInVecQueue<M> {
   fn try_enqueue(
     &self,
-    receiver: Option<Arc<dyn ActorRef>>,
+    _receiver: Option<Arc<dyn ActorRef>>,
     msg: Envelope<M>,
   ) -> anyhow::Result<()> {
     let mut inner = self.inner.write().unwrap();
