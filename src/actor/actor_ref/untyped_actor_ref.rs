@@ -32,6 +32,8 @@ impl LocalActorRef {
     let local_actor_ref_arc = Arc::new(local_actor_ref);
     // ロックを獲得してLocalActorRefInnerのself_refを更新する。更新が完了するとcloned_local_actor_refとinnerのself_refが同じ値になる
     let mut local_actor_ref_inner = local_actor_ref_arc.inner.lock().unwrap();
+    let weak = Arc::downgrade(&local_actor_ref_arc);
+
     local_actor_ref_inner
       .actor_cell
       .set_self_ref(local_actor_ref_arc.clone());

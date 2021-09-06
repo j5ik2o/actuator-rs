@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Weak};
 
 use crate::actor::actor_context::ActorContext;
 use crate::actor::actor_ref::{
