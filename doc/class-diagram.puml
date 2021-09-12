@@ -1,0 +1,354 @@
+/'
+-			private
+#			protected
+~			package private
++			public
+'/
+@startuml
+interface Actor {
+    context: ActorContext
+    self(): ActorRef
+    sender(): ActorRef
+    receive(): Receive
+    unhandled(reason: Throwable): Unit
+}
+
+Actor --> ActorContext
+
+interface Router {
+}
+
+interface RouterConfig {
+    createRouter(system: System): Router
+    routerDispatcher(): String
+    routingLogicController(routingLogic: RoutingLogic): Option[Props] = None
+    isManagementMessage(msg: Any): Boolean
+    stopRouterWhenAllRouteesRemoved: Boolean
+    withFallback(other: RouterConfig): RouterConfig
+    verifyConfig(path: ActorPath): Unit
+    createRouterActor(): RouterActor
+}
+
+interface IndirectActorProducer {
+  produce(): Actor
+  actorClass(): Class[_ <: Actor]
+}
+
+class Deploy {
+    path(): String
+    config(): Config
+    routerConfig(): RouterConfig
+    scope(): Scope
+    dispatcher(): String
+    mailbox(): String
+    tags(): Set[String]
+}
+
+class Deployer {
+    settings: ActorSystem.Setings,
+    dynamicAccess: DynamicAccess,
+    routerTypeMapping(): Map[String, String]
+    lookup(path: ActorPath): Option[Deploy]
+    lookup(path: Iterable[String]): Option[Deploy]
+    deploy(d: Deploy): Unit
+    parseConfig(key: String, config: Config): Option[Deploy]
+}
+
+Deployer --> Deploy
+
+interface Scope {
+    withFallback(other: Scope): Scope
+}
+abstract class LocalScope implements Scope { }
+class LocalScopeImpl<<singleton>> extends LocalScope {
+    getInstance(): LocalScopeImpl
+}
+abstract class NoScopeGiven implements Scope { }
+class NoScopeGivenImpl<<singleton>> extends NoScopeGiven { }
+
+class Props {
+    deploy: Deploy
+    clazz: Class[_]
+    args: Seq[Any]
+}
+
+Props --> Deploy
+Deploy --> Scope
+Deploy --> RouterConfig
+RouterConfig --> Router
+
+interface Cell<<trait>> {
+    self(): ActorRef
+    system(): ActorSystem
+    systemImpl(): ActorSystemImpl
+    start(): this.type
+    suspend(): Unit
+    resume(causedByFailure: Throwable): Unit
+    restart(cause: Throwable): Unit
+    stop(): Unit
+    #isTerminated(): Boolean
+    parent(): InternalActorRef
+    childrenRefs(): ChildrenContainer
+    getChildByName(name: String): Option[ChildStats]
+    getSingleChild(name: String): InternalActorRef
+    sendMessage(msg: Envelope): Unit
+    sendMessage(message: Any, sender: ActorRef): Unit
+    sendSystemMessage(message: SystemMessage): Unit
+    isLocal(): Boolean
+    hasMessage(): Boolean
+    numberOfMessages(): Int
+    props(): Props
+}
+
+Cell --> ActorSystem
+Cell --> Props
+
+class ActorCell implements ActorContext, Cell {
+   protected stash(msg: SystemMessage): Unit
+}
+class ActorPath {}
+class Address {}
+
+abstract class ActorRef {
+    +path(): ActorPath
+    +tell(msg: Any, senderRef: ActorRef): Unit
+    isTermnated(): Boolean
+    hashCode(): Int
+    equals(other: Any): Boolean
+}
+
+interface ActorRefFactory<<trait>> {
+    #systemImpl(): ActorSystemImpl
+    #provider(): ActorRefProvider
+    +dispatcher(): ExecutionContextExecutor
+    #guardian(): InternalActorRef
+    #lookupRoot(): InternalActorRef
+    +actorRef(props: Props, name: Opiton[String]): ActorRef
+    +actorSelection(path: ActorPath): ActorSelection
+    +stop(actor: ActorRef): Unit
+}
+
+interface ActorRefProvider<<trait>> {
+    rootGuardian(): InternalActorRef
+    rootGuardianAt(address: Address): InternalActorRef
+    guardian(): LocalActorRef
+    systemGuardian(): LocalActorRef
+    deadLetters(): ActorRef
+    -ignoreRef(): ActorRef
+    rootPath(): ActorPath
+    settings(): ActorSystem.Settings
+    ~init(system: ActorSystemImpl): Unit
+    deployer(): Deployer
+    tempPath(): ActorPath
+    tempPath(prefix: String): ActorPath
+    tempContainer(): InternalActorRef
+    ~registerTempActor(actorRef: InternalActorRef, path: ActorPath): Unit
+    #actorOf(system: ActorSystemImpl, props: Props, supervisor: InternalActorRef, path: ActorPath, systemService: Boolean, deploy: Option[Deploy]): InternalActorRef
+    resolveActorRef(path: String): ActorRef
+    resolveActorRef(path: ActorPath): ActorRef
+    terminationFuture(): Future[ActorRef]
+    getExternalAddressFor(address: Address): Option[Address]
+    getDefualtAddress(): Address
+    #serializationInformation: SerializationInformation
+    #addressString: String
+}
+
+ActorRefProvider --> Deployer
+ActorRefProvider --> InternalActorRef
+
+
+interface ActorContext<<trait>> extends ActorRefFactory {
+    self(): ActorRef
+    props(): Props
+    receiveTimeout(): Duration
+    setReceiveTimeout(timeout: Duration): Unit
+    become(behavior: Actor.Receive): Unit
+    unbcome(): Unit
+    sender(): ActorRef
+    children(): Iterable[ActorRef]
+    child(name: String): Option[ActorRef]
+    dispatcher(): ExecutionContextExecutor
+    system(): ActorSystem
+    parent(): ActorRef
+    watch(subject: ActorRef): ActorRef
+    watchWith(subject: ActorRef, message: Any): ActorRef
+    unwatch(subject: ActorRef): ActorRef
+    writeObject(o: ObjectOutputStream): Unit
+}
+abstract class ActorSystem<<trait>> implements ActorRefFactory {
+    name(): String
+    settigs(): Settings
+    logConfiguration(): Unit
+    /(name: String): ActorPath
+    child(child: String): ActorPath
+    /(name: Iterable[String]): ActorPath
+    descendant(names: Iterable[String]): ActorPath
+    startTime(): Long
+    uptime(): Long
+    eventStream: EventStream
+    log: LoggingAdapter
+    deadLetters(): ActorRef
+    scheduler: Scheduler
+    dispatchers: Dispatchers
+    dispatcher: ExecutionContextExecutor
+    mailboxes: Mailboxes
+    registerOnTermination[T](code: => T): Unit
+    registerOnTermination(code: Runnable): Unit
+    terminate(): Unit
+    whenTerminated: Future[Unit]
+    registerExtension[T <: Extension](ext: T): T
+    extension[T <: Extension](key: ExtensionId[T]): T
+    hasExtension(key: ExtensionId[_ <: Extension]): Boolean
+}
+
+class Dispatchers {
+    settings: Settings
+    lookup(id: String): MessageDispatcher
+    hasDispatcher(id: String): Boolean
+    registerConfigurator(id: String, configurator: MessageDispatcherConfigurator): Boolean
+}
+
+Dispatchers --> MessageDispatcher
+Dispatchers --> DispatcherConfigurator
+
+class DispatcherConfigurator extends MessageDispatcherConfigurator {
+}
+
+abstract class MessageDispatcherConfigurator {}
+
+interface DispatcherPrerequisites {
+  threadFactory: ThreadFactory
+  eventStream: EventStream
+  scheduler: Scheduler
+  dynamicAccess: DynamicAccess
+  settings: ActorSystem.Settings
+  mailboxes: Mailboxes
+  defaultExecutionContext: Option[ExecutionContext]}
+}
+
+
+ActorSystem --> ActorRef
+ActorSystem --> Dispatchers
+
+class ActorSystemImpl extends ActorSystem {}
+
+abstract class InternalActorRef<<trait>> extends ActorRef {
+    start(): Unit
+    resume(casuedByFailure: Throwable): Unit
+    suspend(): Unit
+    restart(cause: Throwable): Unit
+    stop(): Unit
+    sendSystemMessage(message: SystemMessage): Unit
+
+    provider(): ActorRefProvider
+    parent(): InternalActorRef
+    getChild(name: String): InternalActorRef
+
+    isLocal: Boolean
+    #isTerminated: Boolean
+}
+abstract class ActorRefWithCell<<trait>> extends InternalActorRef {
+    underling(): Cell
+    children(): Iterable[ActorRef]
+    getSingleChild(name: String): InternalActorRef
+}
+ActorRefWithCell --> Cell
+ActorRefWithCell --> InternalActorRef
+
+class LocalActorRef<<struct>> extends ActorRefWithCell {
+    underlying(): ActorCell
+    actorContext(): ActorContext = actorCell    
+}
+LocalActorRef --> ActorCell
+abstract class AbstractMessageDispatcher<<trait>> {
+
+}
+interface ExecutionContext {
+  execute(runnable: Runnable): Unit
+  reportFailure(@deprecatedName("t") cause: Throwable): Unit
+}
+interface Executor {
+    execute(command: Runnable): Unit
+}
+interface ExecutionContextExecutor extends ExecutionContext, Executor
+
+abstract class MessageDispatcher<<trait>> extends AbstractMessageDispatcher implements ExecutionContextExecutor {
+    mailboxes(): Mailboxes
+    eventStream(): EventStream
+    createMailbox(actor: Cell, mailboxType: MailboxType): Mailbox
+    id(): String
+    attach(actor: ActorCell): Unit
+    detach(actor: ActorCell): Unit
+    reportFailure(t: Throwable): Unit
+    register(actor: ActorCell): Unit
+    unregister(actor: ActorCell): Unit
+    shutdownTimeout: Duration
+    suspend(actor: ActorCell): Unit
+    resume(actor: ActorCell): Unit
+    systemDispatch(receiver: ActorCell, message: SystemMessage): Unit
+    dispatch(receiver: ActorCell, message: Envelope): Unit
+    registerForExecution(mbox: Mailbox, hasMessageHint: Boolean, hasSystemMessageHint: Boolean): Unit
+    throughput: Int
+    throughputDeadlineTime: Long
+    isThroughputDeadlineTimeDefined: Boolean
+    executeTask(invocation: TaskInvocation): Unit
+    shutdown(): Unit
+}
+
+MessageDispatcher --> Mailboxes
+
+abstract class Mailbox {
+    messageQueue: MessageQueue
+    actor: ActorCell
+    setActor(cell: ActorCell): Unit
+    dispatcher(): MessageDispatcher
+    enqueue(receiver: ActorRef, msg: Envelope): Unit
+    dequeue(): Envelope
+    hasMessages(): Boolean
+    numberOfMessages(): Int
+    _statusDoNotCallMeDirectly: Status
+    _systemQueueDoNotCallMeDirectly: SystemMessage
+    currentStatus(): Mailbox.Status
+    shouldProcessMessage(): Boolean
+    suspendCount(): Int
+    isSuspended(): Boolean
+    isClosed(): Boolean
+    isScheduled(): Boolean
+    updateStatus(oldStatus: Status, newStatus: Status): Boolean
+    setStatus(newStatus: Status): Unit
+    resume(): Boolean
+    suspend(): Boolean
+    becomeClosed(): Boolean
+    setAsScheduled(): Boolean
+    setAsIdle(): Boolean
+    systemQueueGet: LatestFirstSystemMessageList
+    systemQueuePut(_old: LatestFirstSystemMessageList, _new: LatestFirstSystemMessageList): Boolean
+    canBeScheduledForExecution(hasMessageHint: Boolean, hasSystemMessageHint: Boolean): Boolean
+    run()<<async>>: Unit
+    getRawResult(): Unit
+    setRawResult(unit: Unit): Unit
+    exec(): Boolean
+    processAllSystemMessages(): Uni
+
+}
+
+abstract class Mailboxes<<trait>> {
+    settings(): Settings
+    eventStream(): EventStream
+    deadLetters: ActorRef
+    deadLetterMailbox(): Mailbox
+    lookup(id: String): Mailbox
+    lookupByQueueType(queueType: QueueType): Mailbox
+    getMailboxRequirement(config: Config): Class[MessageQueue]
+    getProducedMessageQueueType(mailboxType: MailboxType): Class[_]
+    hasRequiredType(actorClass: Class[_]): Boolean
+    getMailboxType(props: Props, dispatcherConfig: Config): MailboxType
+}
+
+Mailboxes --> Mailbox
+
+
+ActorRefFactory -> ActorRefProvider
+ActorRefFactory -> ActorSystemImpl
+
+@enduml

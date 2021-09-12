@@ -1,0 +1,5 @@
+[0m2021.09.08 07:58:52 INFO  Started: Metals version 0.10.6 in workspace '/Users/j5ik2o/Sources/actuator-rs' for client Visual Studio Code 1.59.1.[0m
+[0m2021.09.08 07:58:52 INFO  time: initialize in 0.33s[0m
+[0m2021.09.08 07:58:52 WARN  Build server is not auto-connectable.[0m
+[0m2021.09.08 07:58:52 WARN  no build tool detected in workspace '/Users/j5ik2o/Sources/actuator-rs'. The most common cause for this problem is that the editor was opened in the wrong working directory, for example if you use sbt then the workspace directory should contain build.sbt. [0m
+[0m2021.09.08 08:06:29 INFO  shutting down Metals[0m

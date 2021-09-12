@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 pub trait MessageDispatcherConfigurator {}
 
-pub type  MessageDispatcherArc = Arc<dyn MessageDispatcher>;
+pub type MessageDispatcherArc = Arc<dyn MessageDispatcher>;
 
 pub trait MessageDispatcher {
   fn id(&self) -> &str;

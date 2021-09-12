@@ -24,7 +24,9 @@ impl LocalActorRef {
   pub fn new(system: ActorSystemArc) -> LocalActorRef {
     // LocalActorRefインスタンスを生成する
     let local_actor_ref = Self {
-      inner: Arc::new(Mutex::new(LocalActorRefInner { actor_cell: ActorCell::new(system) })),
+      inner: Arc::new(Mutex::new(LocalActorRefInner {
+        actor_cell: ActorCell::new(system),
+      })),
     };
     // 同じLocalRefInnerインスタンスへの参照を持つ新しいLocalActorRefインスタンスを生成する
     let cloned_local_actor_ref = local_actor_ref.clone();

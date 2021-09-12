@@ -8,3 +8,4 @@ pub mod actor;
 pub mod actor_system;
 pub mod config;
 pub mod kernel;
+mod new_model;
