@@ -5,6 +5,7 @@ edition = "2018"
 
 
 [dependencies]
+actuator-support-rs = { path = "./support" }
 log = "0.4"
 anyhow = "1.0.42"
 thiserror = "1.0.26"
@@ -18,6 +19,12 @@ fasthash = "0.4"
 dashmap = "4.0.2"
 toml = "0.5"
 config = "0.11"
+fp_rust = "0.3.5"
 
 [dev-dependencies]
 env_logger = "0.9.0"
+
+[workspace]
+members = [
+    "support"
+]
