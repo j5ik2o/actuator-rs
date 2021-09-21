@@ -51,7 +51,10 @@ impl<E> VecQueue<E> {
   fn with_elements(values: impl IntoIterator<Item = E> + ExactSizeIterator) -> Self {
     let num_elements = values.len();
     let vec = values.into_iter().collect::<VecDeque<E>>();
-    Self { values: vec, num_elements }
+    Self {
+      values: vec,
+      num_elements,
+    }
   }
 }
 
@@ -121,10 +124,9 @@ impl<E> BlockingVecQueue<E> {
     Self {
       q: Mutex::new(VecQueue::new()),
       cv: Condvar::new(),
-      p: None
+      p: None,
     }
   }
-
 }
 
 impl<E: Clone> Queue<E> for BlockingVecQueue<E> {
@@ -201,7 +203,6 @@ mod tests {
     assert_eq!(result, 2);
     let result = vec_queue.poll().unwrap();
     assert_eq!(result, 3);
-
   }
 
   #[test]
@@ -214,11 +215,10 @@ mod tests {
     assert!(result);
     let result = vec_queue.offer(3);
     assert!(result.is_err());
-
   }
 
   #[test]
-  fn test_bq(){
+  fn test_bq() {
     let mut bq1 = Arc::new(Mutex::new(BlockingVecQueue::<i32>::new()));
     let mut bq2 = bq1.clone();
 
@@ -233,7 +233,7 @@ mod tests {
     });
     {
       let mut bq1_g = bq1.lock().unwrap();
-     bq1_g.put(1);
+      bq1_g.put(1);
     }
     handler.join().unwrap();
   }
