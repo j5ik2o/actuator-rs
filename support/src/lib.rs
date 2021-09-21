@@ -1,3 +1,8 @@
+#[cfg(test)]
+extern crate env_logger as logger;
+#[macro_use]
+extern crate log;
+
 mod collections;
 
 #[cfg(test)]

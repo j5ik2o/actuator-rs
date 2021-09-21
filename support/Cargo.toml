@@ -9,3 +9,7 @@ edition = "2018"
 anyhow = "1.0.42"
 thiserror = "1.0.26"
 owning_ref = "0.4.1"
+log = "0.4"
+
+[dev-dependencies]
+env_logger = "0.9.0"
