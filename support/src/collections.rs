@@ -139,6 +139,9 @@ impl<E: Clone> Queue<E> for BlockingVecQueue<E> {
   }
 }
 
+/// https://github.com/JimFawcett/RustBlockingQueue/blob/master/src/lib.rs
+/// https://docs.rs/fp_rust/0.1.39/src/fp_rust/sync.rs.html#300
+
 impl<E: Clone> BlockingQueue<E> for BlockingVecQueue<E> {
   fn put(&mut self, e: E) -> Result<()> {
     let mut lq = self.q.lock().unwrap();
