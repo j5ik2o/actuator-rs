@@ -1,10 +1,13 @@
-use anyhow::Result;
-use anyhow::anyhow;
 use std::collections::VecDeque;
-use std::sync::{Arc, Mutex, Condvar, MutexGuard};
-use std::sync::mpsc::{Sender, Receiver, channel};
-use owning_ref::MutexGuardRef;
 use std::ops::Deref;
+use std::sync::{Arc, Condvar, Mutex, MutexGuard, RwLock};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::time::Duration;
+
+use anyhow::anyhow;
+use anyhow::Result;
+use owning_ref::MutexGuardRef;
+use std::thread::sleep;
 
 pub trait Queue<E> {
   fn len(&self) -> usize;
@@ -112,18 +115,62 @@ impl<E> Deque<E> for VecQueue<E> {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BlockingVecQueue<E> {
-  q: Mutex<VecQueue<E>>,
-  cv: Condvar,
+  inner: Arc<Mutex<BlockingVecQueueInner<E>>>,
   p: Option<E>,
+}
+
+#[derive(Debug)]
+struct BlockingVecQueueInner<E> {
+  q: VecQueue<E>,
+  take_lock: Mutex<bool>,
+  take_cvar: Condvar,
+  put_lock: Mutex<bool>,
+  put_cvar: Condvar,
+}
+
+impl<E> BlockingVecQueueInner<E> {
+  pub fn new(
+    q: VecQueue<E>,
+    take_lock: Mutex<bool>,
+    take_cvar: Condvar,
+    put_lock: Mutex<bool>,
+    put_cvar: Condvar,
+  ) -> Self {
+    Self {
+      q,
+      take_lock,
+      take_cvar,
+      put_lock,
+      put_cvar,
+    }
+  }
 }
 
 impl<E> BlockingVecQueue<E> {
   pub fn new() -> Self {
     Self {
-      q: Mutex::new(VecQueue::new()),
-      cv: Condvar::new(),
+      inner: Arc::new(Mutex::new(BlockingVecQueueInner::new(
+        VecQueue::new(),
+        Mutex::new(false),
+        Condvar::new(),
+        Mutex::new(false),
+        Condvar::new(),
+      ))),
+      p: None,
+    }
+  }
+
+  pub fn with_num_elements(num_elements: usize) -> Self {
+    Self {
+      inner: Arc::new(Mutex::new(BlockingVecQueueInner::new(
+        VecQueue::with_num_elements(num_elements),
+        Mutex::new(false),
+        Condvar::new(),
+        Mutex::new(false),
+        Condvar::new(),
+      ))),
       p: None,
     }
   }
@@ -131,19 +178,23 @@ impl<E> BlockingVecQueue<E> {
 
 impl<E: Clone> Queue<E> for BlockingVecQueue<E> {
   fn len(&self) -> usize {
-    let lq = self.q.lock().unwrap();
+    let inner = self.inner.lock().unwrap();
+    let lq = &inner.q;
     lq.len()
   }
 
   fn offer(&mut self, e: E) -> Result<bool> {
-    let mut lq = self.q.lock().unwrap();
-    self.p = lq.peek().map(|e| e.clone());
+    let mut inner = self.inner.lock().unwrap();
+    let lq = &mut inner.q;
     lq.offer(e)
   }
 
   fn poll(&mut self) -> Option<E> {
-    let mut lq = self.q.lock().unwrap();
-    lq.poll()
+    let mut inner = self.inner.lock().unwrap();
+    let lq = &mut inner.q;
+    let result = lq.poll();
+    self.p = lq.peek().map(|e| e.clone());
+    result
   }
 
   fn peek(&self) -> Option<&E> {
@@ -156,25 +207,80 @@ impl<E: Clone> Queue<E> for BlockingVecQueue<E> {
 
 impl<E: Clone> BlockingQueue<E> for BlockingVecQueue<E> {
   fn put(&mut self, e: E) -> Result<()> {
-    let mut lq = self.q.lock().unwrap();
-    lq.offer(e);
-    self.cv.notify_one();
+    loop {
+      let inner = self.inner.lock().unwrap();
+      log::debug!(
+        "len = {}, num_elements = {}",
+        inner.q.len(),
+        inner.q.num_elements
+      );
+      if inner.q.len() < inner.q.num_elements {
+        break;
+      }
+      {
+        let mut pl = inner.put_lock.lock().unwrap();
+        log::debug!("put_cvar#wait..");
+        inner
+          .put_cvar
+          .wait_timeout_while(pl, Duration::from_secs(1), |pl| !*pl)
+          .unwrap()
+          .0;
+        drop(inner);
+        sleep(Duration::from_secs(1));
+      }
+    }
+    let mut inner = self.inner.lock().unwrap();
+    inner.q.offer(e);
+    log::debug!("start: take_cvar#notify_one");
+    let mut pl = inner.put_lock.lock().unwrap();
+    *pl = true;
+    inner.take_cvar.notify_one();
+    log::debug!("finish: take_cvar#notify_one");
     Ok(())
   }
 
   fn take(&mut self) -> Option<E> {
-    let mut lq = self.q.lock().unwrap();
-    while lq.len() == 0 {
-      lq = self.cv.wait(lq).unwrap();
+    loop {
+      let inner = self.inner.lock().unwrap();
+      log::debug!(
+        "len = {}, num_elements = {}",
+        inner.q.len(),
+        inner.q.num_elements
+      );
+      if inner.q.len() > 0 {
+        break;
+      }
+      {
+        let mut tl = inner.take_lock.lock().unwrap();
+        log::debug!("take_cvar#wait..");
+        inner
+          .take_cvar
+          .wait_timeout_while(tl, Duration::from_secs(1), |tl| !*tl)
+          .unwrap()
+          .0;
+        drop(inner);
+        sleep(Duration::from_secs(1));
+      }
     }
-    lq.poll()
+    let mut inner = self.inner.lock().unwrap();
+    let result = inner.q.poll();
+    log::debug!("start: put_cvar#notify_one");
+    let mut l = inner.put_lock.lock().unwrap();
+    *l = true;
+    inner.put_cvar.notify_one();
+    log::debug!("finish: put_cvar#notify_one");
+    result
   }
 }
 
 #[cfg(test)]
 mod tests {
-  use crate::collections::{VecQueue, Queue, Deque, BlockingVecQueue, BlockingQueue};
+  use std::env;
   use std::sync::{Arc, Mutex};
+  use std::thread::sleep;
+  use std::time::Duration;
+
+  use crate::collections::{BlockingQueue, BlockingVecQueue, Deque, Queue, VecQueue};
 
   #[test]
   fn test_queue_1() {
@@ -219,22 +325,34 @@ mod tests {
 
   #[test]
   fn test_bq() {
-    let mut bq1 = Arc::new(Mutex::new(BlockingVecQueue::<i32>::new()));
+    env::set_var("RUST_LOG", "debug");
+    // env::set_var("RUST_LOG", "trace");
+    logger::try_init();
+
+    let mut bq1 = BlockingVecQueue::<i32>::with_num_elements(1);
     let mut bq2 = bq1.clone();
 
     use std::thread;
 
     let handler = thread::spawn(move || {
-      println!("start: lock");
-      let mut bq2_g = bq2.lock().unwrap();
-      println!("finish: lock");
-      let n = bq2_g.take();
-      println!("n = {:?}", n);
+      log::debug!("take: start: sleep");
+      sleep(Duration::from_secs(3));
+      log::debug!("take: finish: sleep");
+
+      log::debug!("take: start: take");
+      let n = bq2.take();
+      log::debug!("take: finish: take");
+      log::debug!("take: n = {:?}", n);
     });
-    {
-      let mut bq1_g = bq1.lock().unwrap();
-      bq1_g.put(1);
-    }
+
+    log::debug!("put: start: put - 1");
+    bq1.put(1);
+    log::debug!("put: finish: put - 1");
+
+    log::debug!("put: start: put - 2");
+    bq1.put(1);
+    log::debug!("put: finish: put - 2");
+
     handler.join().unwrap();
   }
 }
