@@ -18,12 +18,18 @@ pub trait Queue<E> {
 
 pub trait Deque<E>: Queue<E> {
   fn offer_first(&mut self, e: E) -> Result<bool>;
-  fn offer_last(&mut self, e: E) -> Result<bool>;
+  fn offer_last(&mut self, e: E) -> Result<bool> {
+    self.offer(e)
+  }
 
-  fn poll_first(&mut self) -> Option<E>;
+  fn poll_first(&mut self) -> Option<E> {
+    self.poll()
+  }
   fn poll_last(&mut self) -> Option<E>;
 
-  fn peek_first(&self) -> Option<&E>;
+  fn peek_first(&self) -> Option<&E> {
+    self.peek()
+  }
   fn peek_last(&self) -> Option<&E>;
 }
 
@@ -94,20 +100,8 @@ impl<E> Deque<E> for VecQueue<E> {
     }
   }
 
-  fn offer_last(&mut self, e: E) -> Result<bool> {
-    self.offer(e)
-  }
-
-  fn poll_first(&mut self) -> Option<E> {
-    self.poll()
-  }
-
   fn poll_last(&mut self) -> Option<E> {
     self.values.pop_back()
-  }
-
-  fn peek_first(&self) -> Option<&E> {
-    self.peek()
   }
 
   fn peek_last(&self) -> Option<&E> {
@@ -176,6 +170,8 @@ impl<E> BlockingVecQueue<E> {
   }
 }
 
+
+
 impl<E: Clone> Queue<E> for BlockingVecQueue<E> {
   fn len(&self) -> usize {
     let inner = self.inner.lock().unwrap();
@@ -202,6 +198,21 @@ impl<E: Clone> Queue<E> for BlockingVecQueue<E> {
   }
 }
 
+impl<E: Clone> Deque<E> for BlockingVecQueue<E> {
+  fn offer_first(&mut self, e: E) -> Result<bool> {
+    let mut inner = self.inner.lock().unwrap();
+    inner.q.offer_first(e)
+  }
+
+  fn poll_last(&mut self) -> Option<E> {
+    let mut inner = self.inner.lock().unwrap();
+    inner.q.poll_last()
+  }
+
+  fn peek_last(&self) -> Option<&E> {
+    self.p.as_ref()
+  }
+}
 /// https://github.com/JimFawcett/RustBlockingQueue/blob/master/src/lib.rs
 /// https://docs.rs/fp_rust/0.1.39/src/fp_rust/sync.rs.html#300
 

@@ -3,7 +3,7 @@ extern crate env_logger as logger;
 #[macro_use]
 extern crate log;
 
-mod collections;
+pub mod collections;
 
 #[cfg(test)]
 mod tests {

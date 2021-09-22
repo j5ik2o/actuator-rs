@@ -1,74 +1,19 @@
+use crate::kernel::{ActorRef, Envelope};
+use crate::kernel::mailbox::queue::{EnvelopeQueue, MessageSize};
+use anyhow::Result;
+
 mod queue;
 
-use std::sync::Arc;
-
-use anyhow::Result;
-use crate::kernel::{ActorRef, Envelope};
-use std::time::Duration;
-use std::collections::VecDeque;
-
-pub trait Queue<T> {
-  fn number_of_messages(&self) -> usize;
-  fn has_messages(&self) -> bool;
-  fn enqueue(&mut self, handle: T);
-  fn dequeue(&mut self) -> Result<T>;
-}
-
-pub trait MessageQueue {
-  fn enqueue(&mut self, receiver: Arc<dyn ActorRef>, handle: Envelope);
-  fn dequeue(&mut self) -> Result<Envelope>;
-  fn dequeue_as_option(&mut self) -> Option<Envelope> {
-    self.dequeue().ok()
-  }
-  fn number_of_messages(&self) -> usize;
-  fn has_messages(&self) -> bool;
-  fn clean_up(&mut self, owner: Arc<dyn ActorRef>, dead_letters: &mut dyn MessageQueue);
-}
-
-pub trait QueueBasedMessageQueue: MessageQueue {
-  fn queue(&self) -> &dyn Queue<Envelope>;
-  fn queue_mut(&mut self) -> &mut dyn Queue<Envelope>;
-
-  fn number_of_messages(&self) -> usize {
-    self.queue().number_of_messages()
-  }
-
-  fn has_messages(&self) -> bool {
-    !self.queue().has_messages()
-  }
-
-  fn clean_up(&mut self, owner: Arc<dyn ActorRef>, dead_letters: &mut dyn MessageQueue) {
-    if QueueBasedMessageQueue::has_messages(self) {
-      let mut envelope_result = self.dequeue();
-      while let Ok(envelope) = &envelope_result {
-        dead_letters.enqueue(owner.clone(), envelope.clone());
-        envelope_result = self.dequeue();
-      }
-    }
-  }
-}
-
-pub trait UnboundedQueueBasedMessageQueue: QueueBasedMessageQueue {
-  fn enqueue(&mut self, _: Arc<dyn ActorRef>, handle: Envelope) {
-    self.queue_mut().enqueue(handle);
-  }
-  fn dequeue(&mut self) -> Result<Envelope> {
-    self.queue_mut().dequeue()
-  }
-}
-
-pub trait BoundedQueueBasedMessageQueue: QueueBasedMessageQueue {
-  fn push_timeout(&self) -> Duration;
-  fn enqueue(&mut self, _: Arc<dyn ActorRef>, handle: Envelope) {
-    let q = self.queue_mut();
-    q.enqueue(handle);
-  }
-  fn dequeue(&mut self) -> Result<Envelope> {
-    self.queue_mut().dequeue()
-  }
-}
-
 pub trait Mailbox {
+  fn actor(&self) -> &dyn ActorRef;
+  fn queue(&self) -> &dyn EnvelopeQueue;
+
+  fn enqueue(&mut self, receiver: &dyn ActorRef, msg: Envelope) -> Result<()>;
+  fn dequeue(&mut self) -> Result<Envelope>;
+
+  fn has_messages(&self) -> bool;
+  fn member_of_messages(&self) -> MessageSize;
+
   fn should_process_message(&self) -> bool;
   fn suspend_count(&self) -> u32;
 
@@ -87,4 +32,8 @@ pub trait Mailbox {
     has_message_hint: bool,
     has_system_message_hint: bool,
   ) -> bool;
+
+  fn process_all_system_messages();
+
+  async fn run();
 }

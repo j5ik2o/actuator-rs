@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::fmt::Debug;
 
 mod mailbox;
+mod message;
 
 pub enum MailboxType {
   MPSC,
