@@ -169,8 +169,6 @@ impl<E> BlockingVecQueue<E> {
   }
 }
 
-
-
 impl<E: Clone> Queue<E> for BlockingVecQueue<E> {
   fn len(&self) -> usize {
     let inner = self.inner.lock().unwrap();

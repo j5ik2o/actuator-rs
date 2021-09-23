@@ -1,12 +1,7 @@
-use std::collections::VecDeque;
-use std::sync::Arc;
-use std::time::Duration;
-
 use anyhow::anyhow;
 use anyhow::Result;
 
 use crate::kernel::{ActorRef, Envelope};
-use crate::kernel::mailbox::Queue;
 use actuator_support_rs::collections::Queue;
 
 pub enum MessageSize {
@@ -18,7 +13,9 @@ pub trait MessageQueue {
   type Item;
   fn enqueue(&mut self, handle: Self::Item) -> Result<()>;
   fn dequeue(&mut self) -> Result<Self::Item>;
-
+  fn dequeue_as_option(&mut self) -> Option<Self::Item> {
+    self.dequeue().ok()
+  }
   fn number_of_messages(&self) -> MessageSize;
 
   fn has_messages(&self) -> bool;
@@ -32,20 +29,18 @@ pub trait MessageQueue {
   }
 }
 
-pub trait EnvelopeQueue: MessageQueue {
-  type Item = Envelope;
-  fn enqueue(&mut self, receiver: &dyn ActorRef, handle: Envelope) -> Result<()>;
+pub trait EnvelopeQueue: MessageQueue<Item = Envelope> {
+  fn enqueue_with_receiver(&mut self, receiver: &dyn ActorRef, handle: Envelope) -> Result<()>;
 
-  fn dequeue(&mut self) -> Result<Envelope>;
-  fn dequeue_as_option(&mut self) -> Option<Envelope> {
-    self.dequeue().ok()
-  }
-
-  fn clean_up(&mut self, owner: &dyn ActorRef, dead_letters: &mut dyn MessageQueue);
+  fn clean_up(
+    &mut self,
+    owner: &dyn ActorRef,
+    dead_letters: &mut dyn EnvelopeQueue,
+  );
 }
 
-pub struct VecQueue<E>{
- q: actuator_support_rs::collections::BlockingVecQueue<E>
+pub struct VecQueue<E> {
+  q: actuator_support_rs::collections::BlockingVecQueue<E>,
 }
 
 impl MessageQueue for VecQueue<Envelope> {
@@ -57,7 +52,9 @@ impl MessageQueue for VecQueue<Envelope> {
   }
 
   fn dequeue(&mut self) -> Result<Envelope> {
-    self.q.poll()
+    self
+      .q
+      .poll()
       .ok_or(Err(anyhow!("occurred error: no such element"))?)
   }
 
@@ -68,23 +65,22 @@ impl MessageQueue for VecQueue<Envelope> {
   fn has_messages(&self) -> bool {
     self.q.len() > 0
   }
-
 }
 
 impl EnvelopeQueue for VecQueue<Envelope> {
-  fn enqueue(&mut self, receiver: &dyn ActorRef, handle: Envelope) -> Result<()> {
+  fn enqueue_with_receiver(&mut self, receiver: &dyn ActorRef, handle: Envelope) -> Result<()> {
     self.enqueue(handle)
   }
 
-  fn dequeue(&mut self) -> Result<Envelope> {
-    MessageQueue::dequeue(self)
-  }
-
-  fn clean_up(&mut self, owner: &dyn ActorRef, dead_letters: &mut dyn MessageQueue) {
+  fn clean_up(
+    &mut self,
+    owner: &dyn ActorRef,
+    dead_letters: &mut dyn EnvelopeQueue,
+  ) {
     if self.has_messages() {
       let mut envelope_result = self.dequeue();
       while let Ok(envelope) = &envelope_result {
-        dead_letters.enqueue(owner, envelope.clone());
+        dead_letters.enqueue_with_receiver(owner, envelope.clone());
         envelope_result = self.dequeue();
       }
     }

@@ -1,9 +1,11 @@
+use async_trait::async_trait;
 use crate::kernel::{ActorRef, Envelope};
 use crate::kernel::mailbox::queue::{EnvelopeQueue, MessageSize};
 use anyhow::Result;
 
 mod queue;
 
+#[async_trait]
 pub trait Mailbox {
   fn actor(&self) -> &dyn ActorRef;
   fn queue(&self) -> &dyn EnvelopeQueue;
@@ -37,3 +39,5 @@ pub trait Mailbox {
 
   async fn run();
 }
+
+pub struct DefaultMailbox {}
