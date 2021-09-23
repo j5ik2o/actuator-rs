@@ -32,11 +32,7 @@ pub trait MessageQueue {
 pub trait EnvelopeQueue: MessageQueue<Item = Envelope> {
   fn enqueue_with_receiver(&mut self, receiver: &dyn ActorRef, handle: Envelope) -> Result<()>;
 
-  fn clean_up(
-    &mut self,
-    owner: &dyn ActorRef,
-    dead_letters: &mut dyn EnvelopeQueue,
-  );
+  fn clean_up(&mut self, owner: &dyn ActorRef, dead_letters: &mut dyn EnvelopeQueue);
 }
 
 pub struct VecQueue<E> {
@@ -68,15 +64,11 @@ impl MessageQueue for VecQueue<Envelope> {
 }
 
 impl EnvelopeQueue for VecQueue<Envelope> {
-  fn enqueue_with_receiver(&mut self, receiver: &dyn ActorRef, handle: Envelope) -> Result<()> {
+  fn enqueue_with_receiver(&mut self, _receiver: &dyn ActorRef, handle: Envelope) -> Result<()> {
     self.enqueue(handle)
   }
 
-  fn clean_up(
-    &mut self,
-    owner: &dyn ActorRef,
-    dead_letters: &mut dyn EnvelopeQueue,
-  ) {
+  fn clean_up(&mut self, owner: &dyn ActorRef, dead_letters: &mut dyn EnvelopeQueue) {
     if self.has_messages() {
       let mut envelope_result = self.dequeue();
       while let Ok(envelope) = &envelope_result {

@@ -287,7 +287,7 @@ mod tests {
   use std::sync::{Arc, Mutex};
   use std::thread::sleep;
   use std::time::Duration;
-  
+
   use crate::collections::{BlockingQueue, BlockingVecQueue, Deque, Queue, VecQueue};
 
   fn init_logger() {
@@ -295,7 +295,6 @@ mod tests {
     // env::set_var("RUST_LOG", "trace");
     let _ = logger::try_init();
   }
-
 
   #[test]
   fn test_queue_1() {
