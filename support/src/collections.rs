@@ -6,7 +6,6 @@ use std::time::Duration;
 
 use anyhow::anyhow;
 use anyhow::Result;
-use owning_ref::MutexGuardRef;
 use std::thread::sleep;
 
 pub trait Queue<E> {
@@ -290,11 +289,20 @@ mod tests {
   use std::sync::{Arc, Mutex};
   use std::thread::sleep;
   use std::time::Duration;
-
+  
   use crate::collections::{BlockingQueue, BlockingVecQueue, Deque, Queue, VecQueue};
+
+  fn init_logger() {
+    env::set_var("RUST_LOG", "debug");
+    // env::set_var("RUST_LOG", "trace");
+    let _ = logger::try_init();
+  }
+
 
   #[test]
   fn test_queue_1() {
+    init_logger();
+
     let mut vec_queue = VecQueue::<u32>::new();
 
     let result = vec_queue.offer(1).unwrap();
@@ -307,12 +315,12 @@ mod tests {
     let result = vec_queue.offer(10).unwrap();
     assert!(result);
 
-    println!("vec_queue = {:?}", vec_queue);
+    log::debug!("vec_queue = {:?}", vec_queue);
 
     let peek = vec_queue.peek().unwrap();
-    println!("{}", peek);
+    log::debug!("{}", peek);
     let peek = vec_queue.peek_first().unwrap();
-    println!("{}", peek);
+    log::debug!("{}", peek);
 
     let result = vec_queue.poll().unwrap();
     assert_eq!(result, 1);
@@ -324,6 +332,8 @@ mod tests {
 
   #[test]
   fn test_queue_2() {
+    init_logger();
+
     let mut vec_queue = VecQueue::<u32>::with_num_elements(2);
 
     let result = vec_queue.offer(1).unwrap();
@@ -336,9 +346,7 @@ mod tests {
 
   #[test]
   fn test_bq() {
-    env::set_var("RUST_LOG", "debug");
-    // env::set_var("RUST_LOG", "trace");
-    logger::try_init();
+    init_logger();
 
     let mut bq1 = BlockingVecQueue::<i32>::with_num_elements(1);
     let mut bq2 = bq1.clone();
