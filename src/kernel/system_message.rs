@@ -1,7 +1,6 @@
-use std::alloc::System;
 use std::sync::{Arc, Mutex};
 use crate::kernel::system_message::SystemMessage::*;
-use std::ops::Deref;
+
 use crate::kernel::ActorRef;
 use std::error::Error;
 
@@ -322,7 +321,7 @@ impl EarliestFirstSystemMessageList {
     let mut remaining = other;
     let mut result = self;
     while remaining.non_empty() {
-      let mut msg = remaining.head.clone();
+      let msg = remaining.head.clone();
       remaining = remaining.tail();
       result = result.prepend_for_arc(msg)
     }
@@ -374,20 +373,20 @@ mod test {
   fn test() {
     init_logger();
 
-    let mut e1 = EarliestFirstSystemMessageList::new(SystemMessage::Create { next: None });
+    let e1 = EarliestFirstSystemMessageList::new(SystemMessage::Create { next: None });
 
     println!("{:?}", e1);
     let size = e1.size();
     println!("l1.size = {}", size);
 
-    let mut new_sm = SystemMessage::Suspend { next: None };
+    let new_sm = SystemMessage::Suspend { next: None };
     let e2 = e1.prepend(new_sm);
 
     println!("{:?}", e2);
     let size = e2.size();
     println!("l2.size = {}", size);
 
-    let mut new_sm = SystemMessage::Resume { next: None };
+    let new_sm = SystemMessage::Resume { next: None };
     let e3 = e2.prepend(new_sm);
 
     println!("{:?}", e3);

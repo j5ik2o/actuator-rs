@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::time::{Instant, SystemTime, Duration};
+use std::time::{SystemTime, Duration};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -129,7 +129,7 @@ impl DefaultMailbox {
             self.process_mailbox_with(left - 1, deadline_ns)
           }
         }
-        Err(err) => {}
+        Err(_err) => {}
       }
     }
   }
