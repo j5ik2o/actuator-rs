@@ -78,51 +78,75 @@ pub enum SystemMessage {
 }
 
 impl SystemMessage {
-  fn of_create(next: SystemMessage) -> Self {
-    Create {
-      next: Some(Arc::new(Mutex::new(next))),
+  fn of_create(next_opt: Option<SystemMessage>) -> Self {
+    match next_opt {
+      Some(next) => Create {
+        next: Some(Arc::new(Mutex::new(next))),
+      },
+      None => Create { next: None },
     }
   }
 
-  fn of_recreate(next: SystemMessage) -> Self {
-    Recreate {
-      next: Some(Arc::new(Mutex::new(next))),
+  fn of_recreate(next_opt: Option<SystemMessage>) -> Self {
+    match next_opt {
+      Some(next) => Recreate {
+        next: Some(Arc::new(Mutex::new(next))),
+      },
+      None => Recreate { next: None },
     }
   }
 
-  fn of_suspend(next: SystemMessage) -> Self {
-    Suspend {
-      next: Some(Arc::new(Mutex::new(next))),
+  fn of_suspend(next_opt: Option<SystemMessage>) -> Self {
+    match next_opt {
+      Some(next) => Suspend {
+        next: Some(Arc::new(Mutex::new(next))),
+      },
+      None => Suspend { next: None },
     }
   }
 
-  fn of_resume(next: SystemMessage) -> Self {
-    Resume {
-      next: Some(Arc::new(Mutex::new(next))),
+  fn of_resume(next_opt: Option<SystemMessage>) -> Self {
+    match next_opt {
+      Some(next) => Resume {
+        next: Some(Arc::new(Mutex::new(next))),
+      },
+      None => Resume { next: None },
     }
   }
 
-  fn of_terminate(next: SystemMessage) -> Self {
-    Terminate {
-      next: Some(Arc::new(Mutex::new(next))),
+  fn of_terminate(next_opt: Option<SystemMessage>) -> Self {
+    match next_opt {
+      Some(next) => Terminate {
+        next: Some(Arc::new(Mutex::new(next))),
+      },
+      None => Terminate { next: None },
     }
   }
 
-  fn of_supervise(next: SystemMessage) -> Self {
-    Supervise {
-      next: Some(Arc::new(Mutex::new(next))),
+  fn of_supervise(next_opt: Option<SystemMessage>) -> Self {
+    match next_opt {
+      Some(next) => Supervise {
+        next: Some(Arc::new(Mutex::new(next))),
+      },
+      None => Supervise { next: None },
     }
   }
 
-  fn of_watch(next: SystemMessage) -> Self {
-    Watch {
-      next: Some(Arc::new(Mutex::new(next))),
+  fn of_watch(next_opt: Option<SystemMessage>) -> Self {
+    match next_opt {
+      Some(next) => Watch {
+        next: Some(Arc::new(Mutex::new(next))),
+      },
+      None => Watch { next: None },
     }
   }
 
-  fn of_no_message(next: SystemMessage) -> Self {
-    NoMessage {
-      next: Some(Arc::new(Mutex::new(next))),
+  fn of_no_message(next_opt: Option<SystemMessage>) -> Self {
+    match next_opt {
+      Some(next) => NoMessage {
+        next: Some(Arc::new(Mutex::new(next))),
+      },
+      None => NoMessage { next: None },
     }
   }
 
@@ -164,6 +188,29 @@ impl SystemMessage {
       Supervise { .. } => *self = Supervise { next: value },
       Watch { .. } => *self = Watch { next: value },
       NoMessage { .. } => *self = NoMessage { next: value },
+      Failed {
+        child, error, uid, ..
+      } => {
+        *self = Failed {
+          next: value,
+          child: Arc::clone(child),
+          error: Arc::clone(error),
+          uid: *uid,
+        }
+      }
+      DeathWatchNotification {
+        actor,
+        existence_confirmed,
+        address_terminated,
+        ..
+      } => {
+        *self = DeathWatchNotification {
+          next: value,
+          actor: Arc::clone(actor),
+          existence_confirmed: *existence_confirmed,
+          address_terminated: *address_terminated,
+        }
+      }
       _ => {}
     }
   }
@@ -174,22 +221,17 @@ impl PartialEq for SystemMessage {
     match (self.next().as_ref(), other.next().as_ref()) {
       (Some(v1), Some(v2)) => {
         if (v1.as_ref() as *const _) == (v2.as_ref() as *const _) {
-          log::debug!("SystemMessage:v1:v2");
           true
         } else {
-          log::debug!("SystemMessage:Lock-1");
           let v1_inner = v1.lock().unwrap();
-          log::debug!("SystemMessage:Lock-2");
           let v2_inner = v2.lock().unwrap();
           &*v1_inner == &*v2_inner
         }
       }
       (None, None) => {
-        log::debug!("SystemMessage:None:None");
         true
       }
       _ => {
-        log::debug!("SystemMessage:_");
         false
       }
     }
@@ -373,20 +415,20 @@ mod test {
   fn test() {
     init_logger();
 
-    let e1 = EarliestFirstSystemMessageList::new(SystemMessage::Create { next: None });
+    let e1 = EarliestFirstSystemMessageList::new(SystemMessage::of_create(None));
 
     println!("{:?}", e1);
     let size = e1.size();
     println!("l1.size = {}", size);
 
-    let new_sm = SystemMessage::Suspend { next: None };
+    let new_sm = SystemMessage::of_suspend(None);
     let e2 = e1.prepend(new_sm);
 
     println!("{:?}", e2);
     let size = e2.size();
     println!("l2.size = {}", size);
 
-    let new_sm = SystemMessage::Resume { next: None };
+    let new_sm = SystemMessage::of_resume(None);
     let e3 = e2.prepend(new_sm);
 
     println!("{:?}", e3);
