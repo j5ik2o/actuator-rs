@@ -60,10 +60,8 @@ impl MessageQueue for VecQueue<Envelope> {
 
   fn dequeue(&mut self) -> Result<Envelope> {
     log::debug!("q = {:?}", self.q);
-    let result = self
-      .q
-      .poll();
-    log::debug!("dequeue:result = {:?}",result);
+    let result = self.q.poll();
+    log::debug!("dequeue:result = {:?}", result);
     match result {
       Some(v) => Ok(v),
       None => {

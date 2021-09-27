@@ -82,16 +82,12 @@ pub struct Envelope {
 impl PartialEq for Envelope {
   fn eq(&self, other: &Self) -> bool {
     (self.message.as_ref() as *const _) == (other.message.as_ref() as *const _)
-    && (self.sender.as_ref() as *const _) == (other.sender.as_ref() as *const _)
+      && (self.sender.as_ref() as *const _) == (other.sender.as_ref() as *const _)
   }
 }
 
 impl Envelope {
-  pub fn new(message: Arc<dyn AnyMessage>,
-             sender: Arc<dyn ActorRef>) -> Self {
-    Self {
-      message,
-      sender,
-    }
+  pub fn new(message: Arc<dyn AnyMessage>, sender: Arc<dyn ActorRef>) -> Self {
+    Self { message, sender }
   }
 }

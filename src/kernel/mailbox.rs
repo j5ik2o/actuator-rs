@@ -16,7 +16,6 @@ use crate::kernel::system_message::{
 use crate::kernel::system_message::SystemMessage::NoMessage;
 use std::fmt::Debug;
 
-
 mod queue;
 
 #[derive(Debug, Clone, PartialEq, Eq, TryFromPrimitive)]
@@ -100,7 +99,8 @@ impl Drop for DefaultMailbox {
       {
         let actor = actor_arc.lock().unwrap();
         let dlm = actor.dead_letter_mailbox();
-        let new_contents = LatestFirstSystemMessageList::new(Some(SystemMessage::of_no_message(None)));
+        let new_contents =
+          LatestFirstSystemMessageList::new(Some(SystemMessage::of_no_message(None)));
         let mut message_list = self.system_drain(&new_contents);
         while message_list.non_empty() {
           let (head, tail) = message_list.head_with_tail().unwrap();
@@ -227,7 +227,10 @@ impl DefaultMailbox {
         Ok(next) => {
           log::debug!("dequeue finished: {:?}", next);
           let is_throughput_deadline_time_defined = self.is_throughput_deadline_time_defined();
-          log::debug!("is_throughput_deadline_time_defined = {}", is_throughput_deadline_time_defined);
+          log::debug!(
+            "is_throughput_deadline_time_defined = {}",
+            is_throughput_deadline_time_defined
+          );
           {
             let inner_guard = self.inner.lock().unwrap();
             let mut actor_cell_guard = inner_guard.actor.as_ref().unwrap().lock().unwrap();
@@ -581,14 +584,12 @@ mod tests {
   use super::*;
   use crate::kernel::mailbox::queue::VecQueue;
   use crate::kernel::{DummyActorRef, DummyActorCell, DummyAnyMessage};
-  
-  
 
   #[test]
   fn test_process_mailbox() {
     init_logger();
     let dead_letter_queue: Arc<Mutex<VecQueue<Envelope>>> =
-        Arc::new(Mutex::new(VecQueue::<Envelope>::new()));
+      Arc::new(Mutex::new(VecQueue::<Envelope>::new()));
     let dead_letter_mailbox = DefaultMailbox::new(dead_letter_queue);
     let actor_ref = DummyActorRef;
     let actor_cell = DummyActorCell::new(
@@ -610,7 +611,6 @@ mod tests {
     let ac = actor_cell_arc.lock().unwrap();
 
     assert_eq!(*ac.last_envelope.as_ref().unwrap(), envelope);
-
   }
 
   #[test]
