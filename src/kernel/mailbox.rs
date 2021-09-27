@@ -13,8 +13,8 @@ use crate::kernel::system_message::{
   SystemMessage, LatestFirstSystemMessageList, EarliestFirstSystemMessageList, SystemMessageList,
 };
 use crate::kernel::system_message::SystemMessage::NoMessage;
-use std::env;
-use std::ops::Deref;
+
+
 
 mod queue;
 
@@ -151,6 +151,7 @@ impl SystemMessageQueue for DefaultMailbox {
 
 #[cfg(test)]
 fn init_logger() {
+  use std::env;
   env::set_var("RUST_LOG", "debug");
   // env::set_var("RUST_LOG", "trace");
   let _ = logger::try_init();
