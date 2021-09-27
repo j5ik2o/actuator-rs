@@ -14,8 +14,6 @@ use crate::kernel::system_message::{
 };
 use crate::kernel::system_message::SystemMessage::NoMessage;
 
-
-
 mod queue;
 
 #[derive(Debug, Clone, PartialEq, Eq, TryFromPrimitive)]
@@ -184,7 +182,6 @@ mod test_system_message_queue {
     let l = mailbox.system_drain(&LNIL);
     println!("{:?}", l);
     println!("{:?}", l.head());
-
   }
 
   #[test]
@@ -250,7 +247,7 @@ impl DefaultMailbox {
     log::debug!("system_queue_put: same = {}", same);
     let mut inner = self.inner.lock().unwrap();
     let result = match new.head() {
-      Some(arc) =>{
+      Some(arc) => {
         let new_inner = arc.lock().unwrap();
         if !inner.system_message.contains(&*new_inner) {
           inner.system_message = Some(new_inner.clone());
@@ -259,7 +256,7 @@ impl DefaultMailbox {
           false
         }
       }
-      None =>  {
+      None => {
         inner.system_message = None;
         true
       }
