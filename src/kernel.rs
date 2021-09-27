@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug};
 use std::sync::{Arc, Mutex};
 use crate::kernel::system_message::SystemMessage;
 use crate::kernel::mailbox::SystemMessageQueue;
