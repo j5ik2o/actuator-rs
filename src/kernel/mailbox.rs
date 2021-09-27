@@ -410,7 +410,7 @@ impl Mailbox for DefaultMailbox {
     let dlm = if message_list.non_empty() {
       let inner_gurad = self.inner.lock().unwrap();
       inner_gurad.actor.as_ref().and_then(|actor_cell_arc| {
-        let mut actor_cell_guard = actor_cell_arc.lock().unwrap();
+        let actor_cell_guard = actor_cell_arc.lock().unwrap();
         Some(actor_cell_guard.dead_letter_mailbox())
       })
     } else {
@@ -532,7 +532,10 @@ mod test_system_message_queue {
       Arc::new(Mutex::new(VecQueue::<Envelope>::new()));
     let dead_letter_mailbox = DefaultMailbox::new(dead_letter_queue);
     let actor_ref = DummyActorRef;
-    let actor_cell = DummyActorCell::new(Arc::new(actor_ref), Arc::new(Mutex::new(dead_letter_mailbox)));
+    let actor_cell = DummyActorCell::new(
+      Arc::new(actor_ref),
+      Arc::new(Mutex::new(dead_letter_mailbox)),
+    );
     let queue = Arc::new(Mutex::new(VecQueue::<Envelope>::new()));
 
     let mut mailbox = DefaultMailbox::new(queue);
