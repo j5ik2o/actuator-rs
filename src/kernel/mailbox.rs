@@ -185,9 +185,9 @@ mod test_system_message_queue {
     println!("{:?}", l.head());
 
     let head_g = l.head().unwrap().lock().unwrap();
-    assert!(match (&*head_g, system_message1)  {
-      (Create{ .. }, Create { .. }) => true,
-      _ => false
+    assert!(match (&*head_g, system_message1) {
+      (Create { .. }, Create { .. }) => true,
+      _ => false,
     })
   }
 
