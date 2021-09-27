@@ -161,6 +161,7 @@ mod test_system_message_queue {
   use crate::kernel::mailbox::queue::VecQueue;
   use crate::kernel::DummyActorRef;
   use crate::kernel::system_message::LNIL;
+  use crate::kernel::system_message::SystemMessage::Create;
 
   #[test]
   fn system_enqueue() {
@@ -172,8 +173,8 @@ mod test_system_message_queue {
     let mut mailbox = DefaultMailbox::new(queue, Some(Arc::new(Mutex::new(dead_letter_mailbox))));
 
     let dmmy_actor_ref = DummyActorRef;
-    let system_message = SystemMessage::of_create(None);
-    mailbox.system_enqueue(&dmmy_actor_ref, system_message);
+    let system_message1 = SystemMessage::of_create(None);
+    mailbox.system_enqueue(&dmmy_actor_ref, system_message1.clone());
     let system_message = SystemMessage::of_resume(None);
     mailbox.system_enqueue(&dmmy_actor_ref, system_message);
 
@@ -182,6 +183,12 @@ mod test_system_message_queue {
     let l = mailbox.system_drain(&LNIL);
     println!("{:?}", l);
     println!("{:?}", l.head());
+
+    let head_g = l.head().unwrap().lock().unwrap();
+    assert!(match (&*head_g, system_message1)  {
+      (Create{ .. }, Create { .. }) => true,
+      _ => false
+    })
   }
 
   #[test]
