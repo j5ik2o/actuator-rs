@@ -229,13 +229,13 @@ impl SystemMessage {
 impl PartialEq for SystemMessage {
   fn eq(&self, other: &Self) -> bool {
     match (self.next().as_ref(), other.next().as_ref()) {
-      (Some(v1), Some(v2)) => {
-        if (v1.as_ref() as *const _) == (v2.as_ref() as *const _) {
+      (Some(v1_arc), Some(v2_arc)) => {
+        if (v1_arc.as_ref() as *const _) == (v2_arc.as_ref() as *const _) {
           true
         } else {
-          let v1_inner = v1.lock().unwrap();
-          let v2_inner = v2.lock().unwrap();
-          &*v1_inner == &*v2_inner
+          let v1_guard = v1_arc.lock().unwrap();
+          let v2_guard = v2_arc.lock().unwrap();
+          &*v1_guard == &*v2_guard
         }
       }
       (None, None) => true,
@@ -270,13 +270,13 @@ unsafe impl Sync for LatestFirstSystemMessageList {}
 impl PartialEq for LatestFirstSystemMessageList {
   fn eq(&self, other: &Self) -> bool {
     match (&self.head, &other.head) {
-      (Some(v1), Some(v2)) => {
-        if (v1.as_ref() as *const _) == (v2.as_ref() as *const _) {
+      (Some(v1_arc), Some(v2_arc)) => {
+        if (v1_arc.as_ref() as *const _) == (v2_arc.as_ref() as *const _) {
           true
         } else {
-          let v1_inner = v1.lock().unwrap();
-          let v2_inner = v2.lock().unwrap();
-          &*v1_inner == &*v2_inner
+          let v1_guard = v1_arc.lock().unwrap();
+          let v2_guard = v2_arc.lock().unwrap();
+          &*v1_guard == &*v2_guard
         }
       }
       (None, None) => true,
@@ -321,9 +321,9 @@ impl SystemMessageList for LatestFirstSystemMessageList {
   }
 
   fn tail(&self) -> LatestFirstSystemMessageList {
-    let next = self.head.as_ref().and_then(|e| {
-      let inner = e.lock().unwrap();
-      inner.next()
+    let next = self.head.as_ref().and_then(|system_message_arc| {
+      let system_message_guard = system_message_arc.lock().unwrap();
+      system_message_guard.next()
     });
     LatestFirstSystemMessageList { head: next }
   }
