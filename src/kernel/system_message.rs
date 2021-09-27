@@ -3,6 +3,7 @@ use crate::kernel::system_message::SystemMessage::*;
 
 use crate::kernel::ActorRef;
 use std::error::Error;
+use once_cell::sync::Lazy;
 
 fn size_inner(head: Option<Arc<Mutex<SystemMessage>>>, acc: usize) -> usize {
   if head.is_none() {
@@ -66,7 +67,7 @@ pub enum SystemMessage {
   Failed {
     next: Option<Arc<Mutex<SystemMessage>>>,
     child: Arc<dyn ActorRef>,
-    error: Arc<dyn Error>,
+    error: Arc<dyn Error + Sync + Send>,
     uid: u32,
   },
   DeathWatchNotification {
@@ -77,8 +78,10 @@ pub enum SystemMessage {
   },
 }
 
+unsafe impl Sync for SystemMessage {}
+
 impl SystemMessage {
-  fn of_create(next_opt: Option<SystemMessage>) -> Self {
+  pub fn of_create(next_opt: Option<SystemMessage>) -> Self {
     match next_opt {
       Some(next) => Create {
         next: Some(Arc::new(Mutex::new(next))),
@@ -87,7 +90,7 @@ impl SystemMessage {
     }
   }
 
-  fn of_recreate(next_opt: Option<SystemMessage>) -> Self {
+  pub fn of_recreate(next_opt: Option<SystemMessage>) -> Self {
     match next_opt {
       Some(next) => Recreate {
         next: Some(Arc::new(Mutex::new(next))),
@@ -96,7 +99,7 @@ impl SystemMessage {
     }
   }
 
-  fn of_suspend(next_opt: Option<SystemMessage>) -> Self {
+  pub fn of_suspend(next_opt: Option<SystemMessage>) -> Self {
     match next_opt {
       Some(next) => Suspend {
         next: Some(Arc::new(Mutex::new(next))),
@@ -105,7 +108,7 @@ impl SystemMessage {
     }
   }
 
-  fn of_resume(next_opt: Option<SystemMessage>) -> Self {
+  pub fn of_resume(next_opt: Option<SystemMessage>) -> Self {
     match next_opt {
       Some(next) => Resume {
         next: Some(Arc::new(Mutex::new(next))),
@@ -114,7 +117,7 @@ impl SystemMessage {
     }
   }
 
-  fn of_terminate(next_opt: Option<SystemMessage>) -> Self {
+  pub fn of_terminate(next_opt: Option<SystemMessage>) -> Self {
     match next_opt {
       Some(next) => Terminate {
         next: Some(Arc::new(Mutex::new(next))),
@@ -123,7 +126,7 @@ impl SystemMessage {
     }
   }
 
-  fn of_supervise(next_opt: Option<SystemMessage>) -> Self {
+  pub fn of_supervise(next_opt: Option<SystemMessage>) -> Self {
     match next_opt {
       Some(next) => Supervise {
         next: Some(Arc::new(Mutex::new(next))),
@@ -132,7 +135,7 @@ impl SystemMessage {
     }
   }
 
-  fn of_watch(next_opt: Option<SystemMessage>) -> Self {
+  pub fn of_watch(next_opt: Option<SystemMessage>) -> Self {
     match next_opt {
       Some(next) => Watch {
         next: Some(Arc::new(Mutex::new(next))),
@@ -141,7 +144,7 @@ impl SystemMessage {
     }
   }
 
-  fn of_no_message(next_opt: Option<SystemMessage>) -> Self {
+  pub fn of_no_message(next_opt: Option<SystemMessage>) -> Self {
     match next_opt {
       Some(next) => NoMessage {
         next: Some(Arc::new(Mutex::new(next))),
@@ -150,15 +153,22 @@ impl SystemMessage {
     }
   }
 
-  fn unlink(&mut self) {
+  pub fn unlink(&mut self) {
     self.set_next(None);
   }
 
-  fn unlinked(&self) -> bool {
+  pub fn unlinked(&self) -> bool {
     self.next().is_none()
   }
 
-  fn next(&self) -> Option<Arc<Mutex<SystemMessage>>> {
+  pub fn is_no_message(&self) -> bool {
+    match self {
+      NoMessage { .. } => true,
+      _ => false,
+    }
+  }
+
+  pub fn next(&self) -> Option<Arc<Mutex<SystemMessage>>> {
     match self {
       Create { next } => Self::clone_arc(next),
       Recreate { next } => Self::clone_arc(next),
@@ -178,7 +188,7 @@ impl SystemMessage {
     next.as_ref().map(|e| Arc::clone(&e))
   }
 
-  fn set_next(&mut self, value: Option<Arc<Mutex<SystemMessage>>>) {
+  pub fn set_next(&mut self, value: Option<Arc<Mutex<SystemMessage>>>) {
     match self {
       Create { .. } => *self = Create { next: value },
       Recreate { .. } => *self = Recreate { next: value },
@@ -228,12 +238,8 @@ impl PartialEq for SystemMessage {
           &*v1_inner == &*v2_inner
         }
       }
-      (None, None) => {
-        true
-      }
-      _ => {
-        false
-      }
+      (None, None) => true,
+      _ => false,
     }
   }
 }
@@ -246,6 +252,8 @@ pub trait SystemMessageList {
     !self.is_empty()
   }
   fn size(&self) -> usize;
+  fn head(&self) -> Option<&Arc<Mutex<SystemMessage>>>;
+  fn set_head(&mut self, value: Option<Arc<Mutex<SystemMessage>>>);
   fn tail(&self) -> Self;
   fn prepend(self, msg: SystemMessage) -> Self;
 
@@ -256,6 +264,8 @@ pub trait SystemMessageList {
 pub struct LatestFirstSystemMessageList {
   head: Option<Arc<Mutex<SystemMessage>>>,
 }
+
+unsafe impl Sync for LatestFirstSystemMessageList {}
 
 impl PartialEq for LatestFirstSystemMessageList {
   fn eq(&self, other: &Self) -> bool {
@@ -275,10 +285,18 @@ impl PartialEq for LatestFirstSystemMessageList {
   }
 }
 
+pub const LNIL: Lazy<LatestFirstSystemMessageList> =
+  Lazy::new(|| LatestFirstSystemMessageList::new(None));
+pub const ENIL: Lazy<EarliestFirstSystemMessageList> =
+  Lazy::new(|| EarliestFirstSystemMessageList::new(None));
+
 impl LatestFirstSystemMessageList {
-  fn new(head: SystemMessage) -> Self {
-    Self {
-      head: Some(Arc::new(Mutex::new(head))),
+  pub fn new(head_opt: Option<SystemMessage>) -> Self {
+    match head_opt {
+      Some(head) => Self {
+        head: Some(Arc::new(Mutex::new(head))),
+      },
+      None => Self { head: None },
     }
   }
 }
@@ -292,6 +310,14 @@ impl SystemMessageList for LatestFirstSystemMessageList {
 
   fn size(&self) -> usize {
     size_inner(self.head.clone(), 0)
+  }
+
+  fn head(&self) -> Option<&Arc<Mutex<SystemMessage>>> {
+    self.head.as_ref()
+  }
+
+  fn set_head(&mut self, value: Option<Arc<Mutex<SystemMessage>>>) {
+    self.head = value;
   }
 
   fn tail(&self) -> LatestFirstSystemMessageList {
@@ -340,26 +366,29 @@ impl PartialEq for EarliestFirstSystemMessageList {
 }
 
 impl EarliestFirstSystemMessageList {
-  fn new(head: SystemMessage) -> Self {
-    Self {
-      head: Some(Arc::new(Mutex::new(head))),
+  pub fn new(head_opt: Option<SystemMessage>) -> Self {
+    match head_opt {
+      Some(head) => Self {
+        head: Some(Arc::new(Mutex::new(head))),
+      },
+      None => Self { head: None },
     }
   }
 
   fn prepend_for_arc(
     self,
-    msg_opt: Option<Arc<Mutex<SystemMessage>>>,
+    msg_arc_opt: Option<Arc<Mutex<SystemMessage>>>,
   ) -> EarliestFirstSystemMessageList {
-    let msg = msg_opt.unwrap();
-    let msg_cloned = msg.clone();
-    let mut msg_inner = msg.lock().unwrap();
+    let msg_arc = msg_arc_opt.unwrap();
+    let msg_arc_cloned = msg_arc.clone();
+    let mut msg_inner = msg_arc.lock().unwrap();
     msg_inner.set_next(self.head);
     EarliestFirstSystemMessageList {
-      head: Some(msg_cloned),
+      head: Some(msg_arc_cloned),
     }
   }
 
-  fn reverse_prepend(self, other: LatestFirstSystemMessageList) -> Self {
+  pub fn reverse_prepend(self, other: LatestFirstSystemMessageList) -> Self {
     let mut remaining = other;
     let mut result = self;
     while remaining.non_empty() {
@@ -380,6 +409,14 @@ impl SystemMessageList for EarliestFirstSystemMessageList {
 
   fn size(&self) -> usize {
     size_inner(self.head.clone(), 0)
+  }
+
+  fn head(&self) -> Option<&Arc<Mutex<SystemMessage>>> {
+    self.head.as_ref()
+  }
+
+  fn set_head(&mut self, value: Option<Arc<Mutex<SystemMessage>>>) {
+    self.head = value;
   }
 
   fn tail(&self) -> EarliestFirstSystemMessageList {
@@ -415,7 +452,7 @@ mod test {
   fn test() {
     init_logger();
 
-    let e1 = EarliestFirstSystemMessageList::new(SystemMessage::of_create(None));
+    let e1 = EarliestFirstSystemMessageList::new(Some(SystemMessage::of_create(None)));
 
     println!("{:?}", e1);
     let size = e1.size();

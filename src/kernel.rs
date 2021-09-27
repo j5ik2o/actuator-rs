@@ -1,5 +1,6 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
+use crate::kernel::system_message::SystemMessage;
 
 mod mailbox;
 mod message;
@@ -10,12 +11,18 @@ pub enum MailboxType {
   VecQueue,
 }
 
-pub trait ActorRef: Debug {}
+pub trait ActorRef: Debug + Sync + Send {}
+
+#[derive(Debug, Clone)]
+pub struct DummyActorRef;
+
+impl ActorRef for DummyActorRef {}
 
 pub trait AnyMessage: Debug + Send {}
 
 pub trait ActorCell {
   fn invoke(&mut self, msg: &Envelope);
+  fn system_invoke(&mut self, msg: SystemMessage);
 }
 
 #[derive(Debug, Clone)]

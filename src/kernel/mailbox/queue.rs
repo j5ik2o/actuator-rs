@@ -39,6 +39,14 @@ pub struct VecQueue<E> {
   q: actuator_support_rs::collections::BlockingVecQueue<E>,
 }
 
+impl<E> VecQueue<E> {
+  pub fn new() -> Self {
+    Self {
+      q: actuator_support_rs::collections::BlockingVecQueue::new(),
+    }
+  }
+}
+
 impl MessageQueue for VecQueue<Envelope> {
   type Item = Envelope;
 
