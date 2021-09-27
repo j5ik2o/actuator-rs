@@ -166,7 +166,8 @@ mod test_system_message_queue {
   #[test]
   fn system_enqueue() {
     init_logger();
-    let dead_letter_queue: Arc<Mutex<VecQueue<Envelope>>> = Arc::new(Mutex::new(VecQueue::<Envelope>::new()));
+    let dead_letter_queue: Arc<Mutex<VecQueue<Envelope>>> =
+      Arc::new(Mutex::new(VecQueue::<Envelope>::new()));
     let dead_letter_mailbox = DefaultMailbox::new(dead_letter_queue);
     let actor_cell = DummyActorCell::new(Arc::new(Mutex::new(dead_letter_mailbox)));
     let queue = Arc::new(Mutex::new(VecQueue::<Envelope>::new()));
@@ -204,9 +205,7 @@ mod test_system_message_queue {
 }
 
 impl DefaultMailbox {
-  pub fn new(
-    queue: Arc<Mutex<dyn EnvelopeQueue>>,
-  ) -> Self {
+  pub fn new(queue: Arc<Mutex<dyn EnvelopeQueue>>) -> Self {
     Self {
       inner: Arc::new(Mutex::new(DefaultMailboxInner {
         queue,

@@ -2,7 +2,6 @@ use std::fmt::{Debug};
 use std::sync::{Arc, Mutex};
 use crate::kernel::system_message::SystemMessage;
 use crate::kernel::mailbox::SystemMessageQueue;
-use actuator_support_rs::collections::VecQueue;
 
 mod mailbox;
 mod message;
@@ -35,17 +34,17 @@ pub struct DummyActorCell {
 impl DummyActorCell {
   pub fn new(dead_letter_mailbox: Arc<Mutex<dyn SystemMessageQueue>>) -> Self {
     Self {
-      dead_letter_mailbox
+      dead_letter_mailbox,
     }
   }
 }
 
 impl ActorCell for DummyActorCell {
-  fn invoke(&mut self, msg: &Envelope) {
+  fn invoke(&mut self, _msg: &Envelope) {
     todo!()
   }
 
-  fn system_invoke(&mut self, msg: SystemMessage) {
+  fn system_invoke(&mut self, _msg: SystemMessage) {
     todo!()
   }
 
