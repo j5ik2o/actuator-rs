@@ -169,7 +169,7 @@ impl<E> BlockingVecQueue<E> {
   }
 }
 
-impl<E: Clone> Queue<E> for BlockingVecQueue<E> {
+impl<E: Clone + std::fmt::Debug> Queue<E> for BlockingVecQueue<E> {
   fn len(&self) -> usize {
     let inner = self.inner.lock().unwrap();
     let lq = &inner.q;
@@ -185,7 +185,9 @@ impl<E: Clone> Queue<E> for BlockingVecQueue<E> {
   fn poll(&mut self) -> Option<E> {
     let mut inner = self.inner.lock().unwrap();
     let lq = &mut inner.q;
+    log::debug!("lq = {:?}", lq);
     let result = lq.poll();
+    log::debug!("result = {:?}", result);
     self.p = lq.peek().map(|e| e.clone());
     result
   }
@@ -195,7 +197,7 @@ impl<E: Clone> Queue<E> for BlockingVecQueue<E> {
   }
 }
 
-impl<E: Clone> Deque<E> for BlockingVecQueue<E> {
+impl<E: Clone + std::fmt::Debug> Deque<E> for BlockingVecQueue<E> {
   fn offer_first(&mut self, e: E) -> Result<bool> {
     let mut inner = self.inner.lock().unwrap();
     inner.q.offer_first(e)
@@ -213,7 +215,7 @@ impl<E: Clone> Deque<E> for BlockingVecQueue<E> {
 /// https://github.com/JimFawcett/RustBlockingQueue/blob/master/src/lib.rs
 /// https://docs.rs/fp_rust/0.1.39/src/fp_rust/sync.rs.html#300
 
-impl<E: Clone> BlockingQueue<E> for BlockingVecQueue<E> {
+impl<E: Clone + std::fmt::Debug> BlockingQueue<E> for BlockingVecQueue<E> {
   fn put(&mut self, e: E) -> Result<()> {
     loop {
       let inner = self.inner.lock().unwrap();

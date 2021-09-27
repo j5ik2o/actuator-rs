@@ -3,6 +3,8 @@ use anyhow::Result;
 
 use crate::kernel::{ActorRef, Envelope};
 use actuator_support_rs::collections::Queue;
+use std::fmt::Debug;
+use std::sync::{Mutex, Arc};
 
 pub enum MessageSize {
   Limit(usize),
@@ -29,12 +31,13 @@ pub trait MessageQueue {
   }
 }
 
-pub trait EnvelopeQueue: MessageQueue<Item = Envelope> {
+pub trait EnvelopeQueue: MessageQueue<Item = Envelope> + Debug {
   fn enqueue_with_receiver(&mut self, receiver: &dyn ActorRef, handle: Envelope) -> Result<()>;
 
-  fn clean_up(&mut self, owner: &dyn ActorRef, dead_letters: &mut dyn EnvelopeQueue);
+  fn clean_up(&mut self, owner: &dyn ActorRef, dead_letters: Arc<Mutex<dyn EnvelopeQueue>>);
 }
 
+#[derive(Debug)]
 pub struct VecQueue<E> {
   q: actuator_support_rs::collections::BlockingVecQueue<E>,
 }
@@ -56,10 +59,17 @@ impl MessageQueue for VecQueue<Envelope> {
   }
 
   fn dequeue(&mut self) -> Result<Envelope> {
-    self
+    log::debug!("q = {:?}", self.q);
+    let result = self
       .q
-      .poll()
-      .ok_or(Err(anyhow!("occurred error: no such element"))?)
+      .poll();
+    log::debug!("dequeue:result = {:?}",result);
+    match result {
+      Some(v) => Ok(v),
+      None => {
+        return Err(anyhow!("occurred error: no such element"))?;
+      }
+    }
   }
 
   fn number_of_messages(&self) -> MessageSize {
@@ -76,11 +86,12 @@ impl EnvelopeQueue for VecQueue<Envelope> {
     self.enqueue(handle)
   }
 
-  fn clean_up(&mut self, owner: &dyn ActorRef, dead_letters: &mut dyn EnvelopeQueue) {
+  fn clean_up(&mut self, owner: &dyn ActorRef, dead_letters: Arc<Mutex<dyn EnvelopeQueue>>) {
     if self.has_messages() {
       let mut envelope_result = self.dequeue();
       while let Ok(envelope) = &envelope_result {
-        dead_letters.enqueue_with_receiver(owner, envelope.clone());
+        let mut dead_letters_guard = dead_letters.lock().unwrap();
+        dead_letters_guard.enqueue_with_receiver(owner, envelope.clone());
         envelope_result = self.dequeue();
       }
     }

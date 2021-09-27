@@ -7,13 +7,15 @@ use async_trait::async_trait;
 use num_enum::TryFromPrimitive;
 
 use crate::kernel::{ActorCell, ActorRef, Envelope};
-use crate::kernel::mailbox::queue::{EnvelopeQueue, MessageSize};
+use crate::kernel::mailbox::queue::{EnvelopeQueue, MessageSize, MessageQueue};
 use std::cmp::max;
 use crate::kernel::system_message::{
   SystemMessage, LatestFirstSystemMessageList, EarliestFirstSystemMessageList, SystemMessageList,
   LNIL,
 };
 use crate::kernel::system_message::SystemMessage::NoMessage;
+use std::fmt::Debug;
+use std::borrow::BorrowMut;
 
 mod queue;
 
@@ -29,7 +31,8 @@ pub enum MailboxStatus {
   SuspendUnit = 4,
 }
 
-pub trait SystemMessageQueue {
+pub trait SystemMessageQueue: Debug {
+  fn message_queue(&self) -> Arc<Mutex<dyn EnvelopeQueue>>;
   fn system_enqueue(&mut self, receiver: &dyn ActorRef, message: SystemMessage);
   fn system_drain(
     &mut self,
@@ -70,10 +73,12 @@ pub trait Mailbox {
   fn run(&mut self);
 }
 
+#[derive(Debug)]
 pub struct DefaultMailbox {
   inner: Arc<Mutex<DefaultMailboxInner>>,
 }
 
+#[derive(Debug)]
 struct DefaultMailboxInner {
   queue: Arc<Mutex<dyn EnvelopeQueue>>,
   actor: Option<Arc<Mutex<dyn ActorCell>>>,
@@ -83,6 +88,45 @@ struct DefaultMailboxInner {
   throughput_deadline_time: Duration,
   system_message: Option<SystemMessage>,
   terminate: AtomicBool,
+}
+
+impl Drop for DefaultMailbox {
+  fn drop(&mut self) {
+    let actor_arc_opt = {
+      let inner_guard = self.inner.lock().unwrap();
+      inner_guard.actor.clone()
+    };
+    if let Some(actor_arc) = actor_arc_opt {
+      {
+        let actor = actor_arc.lock().unwrap();
+        let dlm = actor.dead_letter_mailbox();
+        let new_contents = LatestFirstSystemMessageList::new(Some(SystemMessage::of_no_message(None)));
+        let mut message_list = self.system_drain(&new_contents);
+        while message_list.non_empty() {
+          let (head, tail) = message_list.head_with_tail().unwrap();
+          message_list = tail;
+          let mut head_guard = head.lock().unwrap();
+          head_guard.unlink();
+          let mut dlm_guard = dlm.lock().unwrap();
+          dlm_guard.system_enqueue(&*actor.my_self(), head_guard.clone());
+        }
+      }
+      {
+        let (queue_arc, actor_arc, dlm_arc) = {
+          let inner_guard = self.inner.lock().unwrap();
+          let queue = inner_guard.queue.clone();
+          let actor = inner_guard.actor.clone().unwrap();
+          let dlm = actor.lock().unwrap().dead_letter_mailbox();
+          (queue, actor, dlm)
+        };
+        let mut queue = queue_arc.lock().unwrap();
+        let actor_g = actor_arc.lock().unwrap();
+        let dlm = dlm_arc.lock().unwrap();
+        let mq = dlm.message_queue();
+        queue.clean_up(&*actor_g.my_self(), mq);
+      }
+    }
+  }
 }
 
 impl DefaultMailbox {
@@ -104,6 +148,11 @@ impl DefaultMailbox {
   pub fn set_actor(&mut self, actor: Option<Arc<Mutex<dyn ActorCell>>>) {
     let mut inner_guard = self.inner.lock().unwrap();
     inner_guard.actor = actor;
+  }
+
+  pub fn actor(&self) -> Option<Arc<Mutex<dyn ActorCell>>> {
+    let inner_guard = self.inner.lock().unwrap();
+    inner_guard.actor.clone()
   }
 
   fn system_queue_get(&self) -> LatestFirstSystemMessageList {
@@ -169,9 +218,14 @@ impl DefaultMailbox {
   }
 
   fn process_mailbox_with(&mut self, left: usize, deadline_ns: u128) {
-    if self.should_process_message() {
+    log::debug!("left = {}, deadline_ns = {}", left, deadline_ns);
+    let is_should_process_message = self.should_process_message();
+    log::debug!("should_process_message = {}", is_should_process_message);
+    if is_should_process_message {
+      log::debug!("dequeue start");
       match self.dequeue() {
         Ok(next) => {
+          log::debug!("dequeue finished: {:?}", next);
           let is_throughput_deadline_time_defined = self.is_throughput_deadline_time_defined();
           log::debug!("is_throughput_deadline_time_defined = {}", is_throughput_deadline_time_defined);
           {
@@ -188,7 +242,9 @@ impl DefaultMailbox {
             self.process_mailbox_with(left - 1, deadline_ns)
           }
         }
-        Err(_err) => {}
+        Err(err) => {
+          log::error!("dequeue finished: {:?}", err);
+        }
       }
     }
   }
@@ -443,6 +499,11 @@ impl Mailbox for DefaultMailbox {
 }
 
 impl SystemMessageQueue for DefaultMailbox {
+  fn message_queue(&self) -> Arc<Mutex<dyn EnvelopeQueue>> {
+    let inner = self.inner.lock().unwrap();
+    inner.queue.clone()
+  }
+
   fn system_enqueue(&mut self, receiver: &dyn ActorRef, mut message: SystemMessage) {
     let current_list = self.system_queue_get();
     let head_arc_opt = current_list.head();
@@ -537,14 +598,18 @@ mod tests {
     let queue = Arc::new(Mutex::new(VecQueue::<Envelope>::new()));
 
     let mut mailbox = DefaultMailbox::new(queue);
-    mailbox.set_actor(Some(Arc::new(Mutex::new(actor_cell))));
+    let actor_cell_arc = Arc::new(Mutex::new(actor_cell));
+    mailbox.set_actor(Some(actor_cell_arc.clone()));
     let dmmy_actor_ref = DummyActorRef;
-
     let envelope = Envelope::new(Arc::new(DummyAnyMessage), Arc::new(dmmy_actor_ref.clone()));
 
-    mailbox.enqueue(&dmmy_actor_ref, envelope).unwrap();
+    mailbox.enqueue(&dmmy_actor_ref, envelope.clone()).unwrap();
+    log::debug!("DefaultMailbox = {:?}", mailbox);
 
     mailbox.process_mailbox();
+    let ac = actor_cell_arc.lock().unwrap();
+
+    assert_eq!(*ac.last_envelope.as_ref().unwrap(), envelope);
 
   }
 
