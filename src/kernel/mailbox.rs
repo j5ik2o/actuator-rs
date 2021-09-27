@@ -283,7 +283,7 @@ impl Mailbox for DefaultMailbox {
       let mut inner_guard = self.inner.lock().unwrap();
       let current_status = inner_guard.current_status.load(Ordering::Relaxed);
       if current_status == MailboxStatus::Closed as u32 {
-        Self::set_status(&mut inner, MailboxStatus::Closed as u32);
+        Self::set_status(&mut inner_guard, MailboxStatus::Closed as u32);
         return false;
       }
       let s = current_status;
@@ -303,7 +303,7 @@ impl Mailbox for DefaultMailbox {
       let mut inner_guard = self.inner.lock().unwrap();
       let current_status = inner_guard.current_status.load(Ordering::Relaxed);
       if current_status == MailboxStatus::Closed as u32 {
-        Self::set_status(&mut inner, MailboxStatus::Closed as u32);
+        Self::set_status(&mut inner_guard, MailboxStatus::Closed as u32);
         log::debug!("Closed: suspend: false");
         return false;
       }
@@ -326,7 +326,7 @@ impl Mailbox for DefaultMailbox {
       let mut inner_guard = self.inner.lock().unwrap();
       let current_status = inner_guard.current_status.load(Ordering::Relaxed);
       if current_status == MailboxStatus::Closed as u32 {
-        Self::set_status(&mut inner, MailboxStatus::Closed as u32);
+        Self::set_status(&mut inner_guard, MailboxStatus::Closed as u32);
         log::debug!("become_closed: false");
         return false;
       }
@@ -385,22 +385,24 @@ impl Mailbox for DefaultMailbox {
     let mut message_list = self.system_drain(&LNIL);
     let mut error_msg: String = "".to_owned();
     while message_list.non_empty() && !self.is_closed() {
-      let msg = message_list.head().clone().unwrap();
-      message_list = message_list.tail();
-      let mut msg_guard = msg.lock().unwrap();
-      msg_guard.unlink();
-      let inner_guard = self.inner.lock().unwrap();
-      inner_guard
-        .actor
-        .as_ref()
-        .iter()
-        .for_each(|actor_cell_arc| {
-          let mut actor_cell_guard = actor_cell_arc.lock().unwrap();
-          actor_cell_guard.system_invoke(*msg_guard);
-        });
-      if inner_guard.terminate.load(Ordering::Relaxed) {
-        error_msg = "Interrupted while processing system messages".to_owned();
+      {
+        let msg = message_list.head().clone().unwrap();
+        let mut msg_guard = msg.lock().unwrap();
+        msg_guard.unlink();
+        let inner_guard = self.inner.lock().unwrap();
+        inner_guard
+          .actor
+          .as_ref()
+          .iter()
+          .for_each(|actor_cell_arc| {
+            let mut actor_cell_guard = actor_cell_arc.lock().unwrap();
+            actor_cell_guard.system_invoke(&*msg_guard);
+          });
+        if inner_guard.terminate.load(Ordering::Relaxed) {
+          error_msg = "Interrupted while processing system messages".to_owned();
+        }
       }
+      message_list = message_list.tail();
       if message_list.is_empty() && !self.is_closed() {
         message_list = self.system_drain(&LNIL);
       }
@@ -415,18 +417,20 @@ impl Mailbox for DefaultMailbox {
       None
     };
     while message_list.non_empty() {
-      let msg = message_list.head().clone().unwrap();
+      {
+        let msg = message_list.head().clone().unwrap();
+        let mut msg_guard = msg.lock().unwrap();
+        msg_guard.unlink();
+        dlm.iter().for_each(|e| {
+          let mut dlm_guard = e.lock().unwrap();
+          let inner_gurad = self.inner.lock().unwrap();
+          let actor_arc = inner_gurad.actor.as_ref().unwrap();
+          let actor_cell_guard = actor_arc.lock().unwrap();
+          let my_self = &*actor_cell_guard.my_self();
+          dlm_guard.system_enqueue(my_self, msg_guard.clone())
+        });
+      }
       message_list = message_list.tail();
-      let mut msg_guard = msg.lock().unwrap();
-      msg_guard.unlink();
-      dlm.iter().for_each(|e| {
-        let mut dlm_guard = e.lock().unwrap();
-        let inner_gurad = self.inner.lock().unwrap();
-        let actor_arc = inner_gurad.actor.as_ref().unwrap();
-        let actor_cell_guard = actor_arc.lock().unwrap();
-        let my_self = &*actor_cell_guard.my_self();
-        dlm_guard.system_enqueue(my_self, *msg_guard)
-      });
     }
   }
 
@@ -527,7 +531,8 @@ mod test_system_message_queue {
     let dead_letter_queue: Arc<Mutex<VecQueue<Envelope>>> =
       Arc::new(Mutex::new(VecQueue::<Envelope>::new()));
     let dead_letter_mailbox = DefaultMailbox::new(dead_letter_queue);
-    let actor_cell = DummyActorCell::new(Arc::new(Mutex::new(dead_letter_mailbox)));
+    let actor_ref = DummyActorRef;
+    let actor_cell = DummyActorCell::new(Arc::new(actor_ref), Arc::new(Mutex::new(dead_letter_mailbox)));
     let queue = Arc::new(Mutex::new(VecQueue::<Envelope>::new()));
 
     let mut mailbox = DefaultMailbox::new(queue);

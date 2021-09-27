@@ -24,7 +24,7 @@ pub trait AnyMessage: Debug + Send {}
 pub trait ActorCell {
   fn my_self(&self) -> Arc<dyn ActorRef>;
   fn invoke(&mut self, msg: &Envelope);
-  fn system_invoke(&mut self, msg: SystemMessage);
+  fn system_invoke(&mut self, msg: &SystemMessage);
   fn dead_letter_mailbox(&self) -> Arc<Mutex<dyn SystemMessageQueue>>;
 }
 
@@ -54,7 +54,7 @@ impl ActorCell for DummyActorCell {
     todo!()
   }
 
-  fn system_invoke(&mut self, _msg: SystemMessage) {
+  fn system_invoke(&mut self, _msg: &SystemMessage) {
     todo!()
   }
 
