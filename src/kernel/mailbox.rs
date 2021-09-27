@@ -81,7 +81,6 @@ struct DefaultMailboxInner {
   is_throughput_deadline_time_defined: bool,
   throughput_deadline_time: Duration,
   system_message: Option<SystemMessage>,
-  dead_letter_mailbox: Option<Arc<Mutex<dyn SystemMessageQueue>>>,
 }
 
 impl SystemMessageQueue for DefaultMailbox {
@@ -93,10 +92,11 @@ impl SystemMessageQueue for DefaultMailbox {
       v_inner.is_no_message()
     }) {
       let mailbox_inner = self.inner.lock().unwrap();
-      match &mailbox_inner.dead_letter_mailbox {
-        Some(system_message_queue_arc) => {
-          log::debug!("send message to dead letter mailbox");
-          let mut system_message_queue = system_message_queue_arc.lock().unwrap();
+      match mailbox_inner.actor.as_ref() {
+        Some(actor) => {
+          let actor_inner = actor.lock().unwrap();
+          let dead_letter_mailbox_arc = actor_inner.dead_letter_mailbox();
+          let mut system_message_queue = dead_letter_mailbox_arc.lock().unwrap();
           system_message_queue.system_enqueue(receiver, message.clone());
         }
         None => {
@@ -159,18 +159,20 @@ fn init_logger() {
 mod test_system_message_queue {
   use super::*;
   use crate::kernel::mailbox::queue::VecQueue;
-  use crate::kernel::DummyActorRef;
+  use crate::kernel::{DummyActorRef, DummyActorCell};
   use crate::kernel::system_message::LNIL;
   use crate::kernel::system_message::SystemMessage::Create;
 
   #[test]
   fn system_enqueue() {
     init_logger();
-    let dead_letter_queue = Arc::new(Mutex::new(VecQueue::<Envelope>::new()));
-    let dead_letter_mailbox = DefaultMailbox::of_dead_letter(dead_letter_queue);
+    let dead_letter_queue: Arc<Mutex<VecQueue<Envelope>>> = Arc::new(Mutex::new(VecQueue::<Envelope>::new()));
+    let dead_letter_mailbox = DefaultMailbox::new(dead_letter_queue);
+    let actor_cell = DummyActorCell::new(Arc::new(Mutex::new(dead_letter_mailbox)));
     let queue = Arc::new(Mutex::new(VecQueue::<Envelope>::new()));
 
-    let mut mailbox = DefaultMailbox::new(queue, Some(Arc::new(Mutex::new(dead_letter_mailbox))));
+    let mut mailbox = DefaultMailbox::new(queue);
+    mailbox.set_actor(Some(Arc::new(Mutex::new(actor_cell))));
 
     let dmmy_actor_ref = DummyActorRef;
     let system_message1 = SystemMessage::of_create(None);
@@ -196,7 +198,7 @@ mod test_system_message_queue {
     init_logger();
     let vec_queue = VecQueue::<Envelope>::new();
     let queue = Arc::new(Mutex::new(vec_queue));
-    let dead_letter_mailbox = DefaultMailbox::of_dead_letter(queue);
+    let dead_letter_mailbox = DefaultMailbox::new(queue);
     assert_eq!(dead_letter_mailbox.has_system_messages(), false);
   }
 }
@@ -204,7 +206,6 @@ mod test_system_message_queue {
 impl DefaultMailbox {
   pub fn new(
     queue: Arc<Mutex<dyn EnvelopeQueue>>,
-    dead_letter_mailbox: Option<Arc<Mutex<dyn SystemMessageQueue>>>,
   ) -> Self {
     Self {
       inner: Arc::new(Mutex::new(DefaultMailboxInner {
@@ -215,13 +216,13 @@ impl DefaultMailbox {
         is_throughput_deadline_time_defined: false,
         throughput_deadline_time: Duration::from_secs(1),
         system_message: None,
-        dead_letter_mailbox,
       })),
     }
   }
 
-  pub fn of_dead_letter(queue: Arc<Mutex<dyn EnvelopeQueue>>) -> Self {
-    Self::new(queue, None)
+  pub fn set_actor(&mut self, actor: Option<Arc<Mutex<dyn ActorCell>>>) {
+    let mut inner = self.inner.lock().unwrap();
+    inner.actor = actor;
   }
 
   fn system_queue_get(&self) -> LatestFirstSystemMessageList {
