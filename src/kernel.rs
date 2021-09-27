@@ -1,4 +1,4 @@
-use std::fmt::{Debug};
+use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Mutex};
 use crate::kernel::system_message::SystemMessage;
 use crate::kernel::mailbox::SystemMessageQueue;
@@ -20,6 +20,12 @@ pub struct DummyActorRef;
 impl ActorRef for DummyActorRef {}
 
 pub trait AnyMessage: Debug + Send {}
+
+#[derive(Debug)]
+pub struct DummyAnyMessage;
+
+impl AnyMessage for DummyAnyMessage {}
+unsafe impl Send for DummyAnyMessage {}
 
 pub trait ActorCell {
   fn my_self(&self) -> Arc<dyn ActorRef>;
@@ -50,12 +56,12 @@ impl ActorCell for DummyActorCell {
     self.my_self.clone()
   }
 
-  fn invoke(&mut self, _msg: &Envelope) {
-    todo!()
+  fn invoke(&mut self, msg: &Envelope) {
+    log::debug!("invoke: {:?}", msg);
   }
 
-  fn system_invoke(&mut self, _msg: &SystemMessage) {
-    todo!()
+  fn system_invoke(&mut self, msg: &SystemMessage) {
+    log::debug!("system_invoke: {:?}", msg);
   }
 
   fn dead_letter_mailbox(&self) -> Arc<Mutex<dyn SystemMessageQueue>> {
@@ -67,4 +73,14 @@ impl ActorCell for DummyActorCell {
 pub struct Envelope {
   message: Arc<dyn AnyMessage>,
   sender: Arc<dyn ActorRef>,
+}
+
+impl Envelope {
+  pub fn new(message: Arc<dyn AnyMessage>,
+             sender: Arc<dyn ActorRef>) -> Self {
+    Self {
+      message,
+      sender,
+    }
+  }
 }

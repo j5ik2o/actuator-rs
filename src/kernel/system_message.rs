@@ -375,6 +375,13 @@ impl EarliestFirstSystemMessageList {
     }
   }
 
+  pub fn head_with_tail(&self) -> Option<(Arc<Mutex<SystemMessage>>, EarliestFirstSystemMessageList)> {
+    self.head.as_ref().map(|head_arc| {
+      let head_guard = head_arc.lock().unwrap();
+      (head_arc.clone(), EarliestFirstSystemMessageList{ head: head_guard.next()} )
+    })
+  }
+
   fn prepend_for_arc(
     self,
     msg_arc_opt: Option<Arc<Mutex<SystemMessage>>>,

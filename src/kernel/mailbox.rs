@@ -116,7 +116,6 @@ impl DefaultMailbox {
     old: &LatestFirstSystemMessageList,
     new: &LatestFirstSystemMessageList,
   ) -> bool {
-    log::debug!("system_queue_put: old = {:?}, new = {:?}", old, new);
     let same = match (old.head(), new.head()) {
       (Some(v1_arc), Some(v2_arc)) => {
         if (v1_arc.as_ref() as *const _) == (v2_arc.as_ref() as *const _) {
@@ -133,7 +132,6 @@ impl DefaultMailbox {
     if same {
       return true;
     }
-    log::debug!("system_queue_put: same = {}", same);
     let mut inner_guard = self.inner.lock().unwrap();
     let result = match new.head() {
       Some(arc) => {
@@ -146,8 +144,6 @@ impl DefaultMailbox {
         true
       }
     };
-
-    log::debug!("system_queue_put: new_old = {:?}, new_new = {:?}", old, new);
     result
   }
 
@@ -177,6 +173,7 @@ impl DefaultMailbox {
       match self.dequeue() {
         Ok(next) => {
           let is_throughput_deadline_time_defined = self.is_throughput_deadline_time_defined();
+          log::debug!("is_throughput_deadline_time_defined = {}", is_throughput_deadline_time_defined);
           {
             let inner_guard = self.inner.lock().unwrap();
             let mut actor_cell_guard = inner_guard.actor.as_ref().unwrap().lock().unwrap();
@@ -383,11 +380,12 @@ impl Mailbox for DefaultMailbox {
 
   fn process_all_system_messages(&mut self) {
     let mut message_list = self.system_drain(&LNIL);
+    log::debug!("message_list = {:?}", message_list);
     let mut error_msg: String = "".to_owned();
     while message_list.non_empty() && !self.is_closed() {
-      {
-        let msg = message_list.head().clone().unwrap();
-        let mut msg_guard = msg.lock().unwrap();
+      message_list = {
+        let (head, tail) = message_list.head_with_tail().unwrap().clone();
+        let mut msg_guard = head.lock().unwrap();
         msg_guard.unlink();
         let inner_guard = self.inner.lock().unwrap();
         inner_guard
@@ -401,8 +399,8 @@ impl Mailbox for DefaultMailbox {
         if inner_guard.terminate.load(Ordering::Relaxed) {
           error_msg = "Interrupted while processing system messages".to_owned();
         }
-      }
-      message_list = message_list.tail();
+        tail
+      };
       if message_list.is_empty() && !self.is_closed() {
         message_list = self.system_drain(&LNIL);
       }
@@ -518,15 +516,40 @@ fn init_logger() {
 }
 
 #[cfg(test)]
-mod test_system_message_queue {
+mod tests {
   use super::*;
   use crate::kernel::mailbox::queue::VecQueue;
-  use crate::kernel::{DummyActorRef, DummyActorCell};
+  use crate::kernel::{DummyActorRef, DummyActorCell, DummyAnyMessage};
   use crate::kernel::system_message::LNIL;
   use crate::kernel::system_message::SystemMessage::Create;
 
   #[test]
-  fn system_enqueue() {
+  fn test_process_mailbox() {
+    init_logger();
+    let dead_letter_queue: Arc<Mutex<VecQueue<Envelope>>> =
+        Arc::new(Mutex::new(VecQueue::<Envelope>::new()));
+    let dead_letter_mailbox = DefaultMailbox::new(dead_letter_queue);
+    let actor_ref = DummyActorRef;
+    let actor_cell = DummyActorCell::new(
+      Arc::new(actor_ref),
+      Arc::new(Mutex::new(dead_letter_mailbox)),
+    );
+    let queue = Arc::new(Mutex::new(VecQueue::<Envelope>::new()));
+
+    let mut mailbox = DefaultMailbox::new(queue);
+    mailbox.set_actor(Some(Arc::new(Mutex::new(actor_cell))));
+    let dmmy_actor_ref = DummyActorRef;
+
+    let envelope = Envelope::new(Arc::new(DummyAnyMessage), Arc::new(dmmy_actor_ref.clone()));
+
+    mailbox.enqueue(&dmmy_actor_ref, envelope).unwrap();
+
+    mailbox.process_mailbox();
+
+  }
+
+  #[test]
+  fn process_all_system_mailbox() {
     init_logger();
     let dead_letter_queue: Arc<Mutex<VecQueue<Envelope>>> =
       Arc::new(Mutex::new(VecQueue::<Envelope>::new()));
@@ -549,15 +572,17 @@ mod test_system_message_queue {
 
     assert!(mailbox.has_system_messages());
 
-    let l = mailbox.system_drain(&LNIL);
-    println!("{:?}", l);
-    println!("{:?}", l.head());
+    // let l = mailbox.system_drain(&LNIL);
+    // println!("{:?}", l);
+    // println!("{:?}", l.head());
 
-    let head_g = l.head().unwrap().lock().unwrap();
-    assert!(match (&*head_g, system_message1) {
-      (Create { .. }, Create { .. }) => true,
-      _ => false,
-    })
+    mailbox.process_all_system_messages();
+
+    // let head_g = l.head().unwrap().lock().unwrap();
+    // assert!(match (&*head_g, system_message1) {
+    //   (Create { .. }, Create { .. }) => true,
+    //   _ => false,
+    // })
   }
 
   #[test]
