@@ -1,5 +1,6 @@
 use mur3::{Hasher128, Hasher32};
 use once_cell::sync::Lazy;
+use oni_comb_uri_rs::models::uri::Uri;
 use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::Formatter;
@@ -115,11 +116,83 @@ impl Address {
   }
 }
 
+fn rec(s: String, fragment: Option<String>, pos: usize, acc: Vec<String>) -> Vec<String> {
+  if pos == 0 {
+    acc
+  } else {
+    log::debug!("pos = {}", pos);
+    let from = s[..pos - 1].rfind(|c| c == '/').map(|n| n as i32).unwrap_or(-1);
+    let sub = &s[((from + 1) as usize)..pos];
+    let l = if fragment.is_some() && acc.is_empty() {
+      let mut t = vec![format!("{}#{}", sub, fragment.as_ref().unwrap())];
+      let mut s = acc;
+      t.append(&mut s);
+      t
+    } else {
+      let mut t = vec![sub.to_owned()];
+      let mut s = acc;
+      t.append(&mut s);
+      t
+    };
+    if from == -1 {
+      l
+    } else {
+      rec(s, fragment, from as usize, l)
+    }
+  }
+}
+
+fn path_split(s: String, fragment: Option<String>) -> Vec<String> {
+  rec(s.clone(), fragment, s.len(), Vec::new())
+}
+
+fn unapply_address(addr: String) -> Option<Vec<String>> {
+  let uri = Uri::parse(&addr).unwrap();
+  log::debug!("uri = {}", uri);
+  if uri.is_absolute() {
+    None
+  } else {
+    Some(path_split(
+      uri.path().unwrap().to_string(),
+      uri.fragment().map(|s| s.clone()),
+    ))
+  }
+}
+
+fn address_from_uri_string_unapply(uri_opt: Option<Uri>) {
+  match uri_opt {
+    None => None,
+    Some(uri) if uri.schema(). => {}
+
+  }
+
+}
+
 #[cfg(test)]
 mod tests {
+  use super::*;
   use crate::actor::address::Address;
   use oni_comb_uri_rs::models::uri::Uri;
-  use std::panic;
+  use std::{env, panic};
+
+  #[ctor::ctor]
+  fn init_logger() {
+    env::set_var("RUST_LOG", "debug");
+    // env::set_var("RUST_LOG", "trace");
+    let _ = env_logger::try_init();
+  }
+
+  #[test]
+  fn test_path_split() {
+    let r = path_split("aaa/bbb/ccc".to_owned(), Some("f".to_owned()));
+    assert_eq!(r, vec!["aaa", "bbb", "ccc#f"]);
+  }
+
+  #[test]
+  fn test_unapply_address() {
+    let r = unapply_address("http://localhost/aaa/bbb/ccc#f".to_string()).unwrap();
+    assert_eq!(r, vec!["aaa", "bbb", "ccc#f"]);
+  }
 
   #[test]
   fn test_to_string_protocol_system() {
@@ -131,7 +204,7 @@ mod tests {
   #[test]
   fn test_to_string_protocol_system_host_port() {
     let address = Address::new_with_host_port("tcp", "test", "host1", 8080);
-    println!("to_string = {}", address.to_string());
+    log::debug!("to_string = {}", address.to_string());
     assert_eq!(address.to_string(), "tcp://test@host1:8080")
   }
 
