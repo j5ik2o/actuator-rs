@@ -2,12 +2,12 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
-use std::rc::Rc;
-use std::str::FromStr;
+
+
 use std::sync::Arc;
 
 use crate::actor::actor_cell::split_name_and_uid;
-use oni_comb_uri_rs::models::uri::{Fragment, Uri};
+use oni_comb_uri_rs::models::uri::{Uri};
 
 use crate::actor::address::{actor_path_extractor, Address};
 

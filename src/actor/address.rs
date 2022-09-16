@@ -1,11 +1,11 @@
 use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::Formatter;
-use std::hash::{Hash, Hasher};
-use std::ops::Add;
-use std::ptr::hash;
+use std::hash::{Hash};
 
-use mur3::{Hasher128, Hasher32};
+
+
+use mur3::{Hasher128};
 use once_cell::sync::Lazy;
 use oni_comb_uri_rs::models::uri::Uri;
 use regex::Regex;
@@ -247,7 +247,7 @@ pub mod actor_path_extractor {
       None => None,
       &Some(p) => address_from_uri_string::unapply2(Some(uri.clone())).map(|v| {
         (v, {
-          let mut v = path_split(p.to_string(), uri.fragment().map(|v| v.to_string()));
+          let v = path_split(p.to_string(), uri.fragment().map(|v| v.to_string()));
           // log::debug!("v = {:?}", v);
           // // v.remove(0);
           v
