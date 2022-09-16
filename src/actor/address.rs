@@ -1,11 +1,9 @@
 use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::Formatter;
-use std::hash::{Hash};
+use std::hash::Hash;
 
-
-
-use mur3::{Hasher128};
+use mur3::Hasher128;
 use once_cell::sync::Lazy;
 use oni_comb_uri_rs::models::uri::Uri;
 use regex::Regex;
