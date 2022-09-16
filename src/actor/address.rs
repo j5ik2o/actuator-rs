@@ -1,6 +1,3 @@
-use mur3::{Hasher128, Hasher32};
-use once_cell::sync::Lazy;
-use oni_comb_uri_rs::models::uri::Uri;
 use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::Formatter;
@@ -8,12 +5,39 @@ use std::hash::{Hash, Hasher};
 use std::ops::Add;
 use std::ptr::hash;
 
-#[derive(Hash)]
+use mur3::{Hasher128, Hasher32};
+use once_cell::sync::Lazy;
+use oni_comb_uri_rs::models::uri::Uri;
+use regex::Regex;
+
+#[derive(Debug, Clone, Hash)]
 pub struct Address {
   protocol: String,
   system: String,
   host: Option<String>,
-  port: Option<u32>,
+  port: Option<u16>,
+}
+
+impl From<(String, String)> for Address {
+  fn from((protocol, system): (String, String)) -> Self {
+    Self {
+      protocol,
+      system,
+      host: None,
+      port: None,
+    }
+  }
+}
+
+impl From<(String, String, String, u16)> for Address {
+  fn from((protocol, system, host, port): (String, String, String, u16)) -> Self {
+    Self {
+      protocol,
+      system,
+      host: Some(host),
+      port: Some(port),
+    }
+  }
 }
 
 impl PartialEq<Self> for Address {
@@ -57,7 +81,6 @@ impl fmt::Display for Address {
   }
 }
 
-use regex::Regex;
 static INVALID_HOST_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"_[^.]*$").unwrap());
 
 impl Address {
@@ -70,7 +93,7 @@ impl Address {
     }
   }
 
-  pub fn new_with_host_port(protocol: &str, system: &str, host: &str, port: u32) -> Self {
+  pub fn new_with_host_port(protocol: &str, system: &str, host: &str, port: u16) -> Self {
     Self {
       protocol: protocol.to_owned(),
       system: system.to_owned(),
@@ -146,34 +169,103 @@ fn path_split(s: String, fragment: Option<String>) -> Vec<String> {
   rec(s.clone(), fragment, s.len(), Vec::new())
 }
 
-fn unapply_address(addr: String) -> Option<Vec<String>> {
-  let uri = Uri::parse(&addr).unwrap();
-  log::debug!("uri = {}", uri);
-  if uri.is_absolute() {
-    None
-  } else {
-    Some(path_split(
-      uri.path().unwrap().to_string(),
-      uri.fragment().map(|s| s.clone()),
-    ))
+pub mod relative_actor_path {
+  use super::*;
+
+  pub fn unapply(addr: String) -> Option<Vec<String>> {
+    let uri = Uri::parse(&addr).unwrap();
+    log::debug!("uri = {}", uri);
+    if uri.is_absolute() {
+      None
+    } else {
+      Some(path_split(
+        uri.path().unwrap().to_string(),
+        uri.fragment().map(|s| s.clone()),
+      ))
+    }
   }
 }
 
-fn address_from_uri_string_unapply(uri_opt: Option<Uri>) {
-  match uri_opt {
-    None => None,
-    Some(uri) if uri.schema(). => {}
+pub mod address_from_uri_string {
+  use super::*;
 
+  pub fn unapply1(uri_opt: Option<&str>) -> Option<Address> {
+    uri_opt.and_then(|u| match Uri::parse(u) {
+      Ok(u) => unapply2(Some(u)),
+      _ => None,
+    })
   }
 
+  pub fn unapply2(uri_opt: Option<Uri>) -> Option<Address> {
+    match uri_opt {
+      Some(uri) if uri.schema().is_none() || (uri.user_info().is_none() && uri.host_name().is_none()) => None,
+      Some(uri) if uri.user_info().is_none() => {
+        if uri.port().is_some() {
+          None
+        } else {
+          Some(Address::new(
+            &uri.schema().unwrap().to_string(),
+            &uri.host_name().unwrap().to_string(),
+          ))
+        }
+      }
+      Some(uri) => {
+        if uri.host_name().is_none() || uri.port().is_none() {
+          None
+        } else {
+          if uri.user_info().is_none() {
+            Some(Address::new(
+              &uri.schema().unwrap().to_string(),
+              &uri.host_name().unwrap().to_string(),
+            ))
+          } else {
+            Some(Address::new_with_host_port(
+              &uri.schema().unwrap().to_string(),
+              &uri.user_info().unwrap().to_string(),
+              &uri.host_name().unwrap().to_string(),
+              uri.port().unwrap(),
+            ))
+          }
+        }
+      }
+      None => None,
+    }
+  }
+
+  pub fn parse(addr: &str) -> Address {
+    unapply1(Some(addr)).unwrap_or_else(|| panic!("Malformed URL: {}", addr))
+  }
+}
+
+pub mod actor_path_extractor {
+  use super::*;
+
+  pub fn unapply(addr: &str) -> Option<(Address, Vec<String>)> {
+    let uri = Uri::parse(addr).unwrap();
+    log::debug!("uri = {}, {:?}", uri, uri);
+    match &uri.path() {
+      None => None,
+      &Some(p) => address_from_uri_string::unapply2(Some(uri.clone())).map(|v| {
+        (v, {
+          let mut v = path_split(p.to_string(), uri.fragment().map(|v| v.to_string()));
+          // log::debug!("v = {:?}", v);
+          // // v.remove(0);
+          v
+        })
+      }),
+    }
+  }
 }
 
 #[cfg(test)]
 mod tests {
-  use super::*;
-  use crate::actor::address::Address;
-  use oni_comb_uri_rs::models::uri::Uri;
   use std::{env, panic};
+
+  use oni_comb_uri_rs::models::uri::Uri;
+
+  use crate::actor::address::Address;
+
+  use super::*;
 
   #[ctor::ctor]
   fn init_logger() {
@@ -189,8 +281,8 @@ mod tests {
   }
 
   #[test]
-  fn test_unapply_address() {
-    let r = unapply_address("http://localhost/aaa/bbb/ccc#f".to_string()).unwrap();
+  fn test_relative_actor_path_unapply() {
+    let r = relative_actor_path::unapply("http://localhost/aaa/bbb/ccc#f".to_string()).unwrap();
     assert_eq!(r, vec!["aaa", "bbb", "ccc#f"]);
   }
 
