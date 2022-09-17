@@ -1,8 +1,10 @@
+use std::borrow::ToOwned;
 use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 
+use once_cell::sync::Lazy;
 use std::sync::Arc;
 
 use crate::actor::actor_cell::split_name_and_uid;
@@ -10,7 +12,88 @@ use oni_comb_uri_rs::models::uri::Uri;
 
 use crate::actor::address::{actor_path_extractor, Address};
 
-#[derive(Debug, Clone)]
+const VALID_SYMBOLS: &'static str = "-_.*$+:@&=,!~';";
+
+const VALID_PATH_CODE: i32 = -1;
+const EMPTY_PATH_CODE: i32 = -2;
+
+fn is_valid_char(c: char) -> bool {
+  matches!(c, 'a'..='z' | 'A'..='Z' | '0'..='9' ) | VALID_SYMBOLS.chars().position(|p| p == c).is_some()
+}
+
+fn is_hex_char(c: char) -> bool {
+  matches!(c, 'a'..='f' | 'A'..='F' | '0'..='9')
+}
+
+fn validate(s: &str, pos: usize) -> i32 {
+  let len = s.len();
+  if pos < len {
+    let c_vec: Vec<char> = s.chars().collect();
+    match c_vec[pos] {
+      char if is_valid_char(char) => validate(s, pos + 1),
+      '%' if pos + 2 < len && is_hex_char(c_vec[pos + 1]) && is_hex_char(c_vec[pos + 2]) => validate(s, pos + 3),
+      _ => pos as i32,
+    }
+  } else {
+    VALID_PATH_CODE
+  }
+}
+
+fn full_path_msg(full_path: String) -> String {
+  if !full_path.is_empty() {
+    format!(" (in path [{}])", full_path)
+  } else {
+    "".to_owned()
+  }
+}
+
+pub fn validate_path_element(element: &str) {
+  validate_path_element_with_full_path(element, "".to_string())
+}
+
+pub fn validate_path_element_with_full_path(element: &str, full_path: String) {
+  match find_invalid_path_element_char_position(element) {
+    VALID_PATH_CODE => {}
+    EMPTY_PATH_CODE => {
+      panic!("Actor path element must not be empty {}", full_path_msg(full_path));
+    }
+    invalidAt => {
+      panic!(
+        "Invalid actor path element [{}]{}, \
+      illegal character [{}] \
+      at position: {}. Actor paths MUST: not start with `$`,\
+       include only ASCII letters and can only contain these special characters: \
+       {}.",
+        element,
+        full_path_msg(full_path),
+        element.chars().nth(invalidAt as usize).unwrap(),
+        invalidAt,
+        VALID_SYMBOLS
+      );
+    }
+  }
+}
+
+pub fn is_valid_path_element(s: &str) -> bool {
+  find_invalid_path_element_char_position(s) == VALID_PATH_CODE
+}
+
+fn find_invalid_path_element_char_position(s: &str) -> i32 {
+  if s.is_empty() {
+    EMPTY_PATH_CODE
+  } else {
+    let len = s.len();
+    if len > 0 && s.chars().nth(0).unwrap() != '$' {
+      validate(s, 0)
+    } else {
+      0
+    }
+  }
+}
+
+static EMPTY_ACTOR_PATH: Lazy<Vec<String>> = Lazy::new(|| vec!["".to_owned()]);
+
+#[derive(Debug, Clone, Hash)]
 pub enum ActorPath {
   Root {
     address: Address,
@@ -21,22 +104,6 @@ pub enum ActorPath {
     name: String,
     uid: u32,
   },
-}
-
-impl Hash for ActorPath {
-  fn hash<H: Hasher>(&self, state: &mut H) {
-    match self {
-      ActorPath::Root { address, name } => {
-        name.hash(state);
-        address.hash(state);
-      }
-      ActorPath::Child { parent, name, uid } => {
-        parent.hash(state);
-        name.hash(state);
-        uid.hash(state);
-      }
-    }
-  }
 }
 
 impl PartialEq for ActorPath {
@@ -137,6 +204,8 @@ pub trait ActorPathBehavior {
   fn with_children(self, children: Vec<String>) -> Self;
 
   fn to_string_without_address(&self) -> String;
+
+  fn to_string_with_address(&self, addr: &Address) -> String;
 }
 
 impl ActorPathBehavior for ActorPath {
@@ -151,13 +220,18 @@ impl ActorPathBehavior for ActorPath {
   }
 
   fn elements(&self) -> Vec<String> {
-    let mut result = Vec::new();
-    let mut current_actor_path = self;
-    while let ActorPath::Child { name, .. } = current_actor_path {
-      result.push(name.clone());
-      current_actor_path = current_actor_path.parent();
+    match self {
+      ActorPath::Root { .. } => EMPTY_ACTOR_PATH.clone(),
+      ActorPath::Child { .. } => {
+        let mut result = Vec::new();
+        let mut current_actor_path = self;
+        while let ActorPath::Child { name, .. } = current_actor_path {
+          result.push(name.clone());
+          current_actor_path = current_actor_path.parent();
+        }
+        result.into_iter().rev().collect::<Vec<_>>()
+      }
     }
-    result.into_iter().rev().collect::<Vec<_>>()
   }
 
   fn is_root(&self) -> bool {
@@ -247,9 +321,71 @@ impl ActorPathBehavior for ActorPath {
   fn to_string_without_address(&self) -> String {
     format!("/{}", self.elements().join("/"))
   }
+
+  fn to_string_with_address(&self, addr: &Address) -> String {
+    match self {
+      ActorPath::Root { .. } => {
+        if self.address().host.is_some() {
+          format!("{}{}", self.address().to_string(), self.name())
+        } else {
+          format!("{}{}", addr.to_string(), self.name())
+        }
+      }
+      ActorPath::Child { .. } => self.build_to_string(|ap| ap.to_string_with_address(addr)),
+    }
+  }
 }
 
 impl ActorPath {
+  fn address_string_length_diff(&self, address: &Address) -> usize {
+    let r = self.root();
+    if r.address().host.is_some() {
+      0
+    } else {
+      address.to_string().len() - r.address().to_string().len()
+    }
+  }
+
+  fn to_string_length(&self) -> usize {
+    self.to_string_offset() + self.name().len()
+  }
+
+  fn to_string_offset(&self) -> usize {
+    match self.parent() {
+      ActorPath::Root { address, name } => address.to_string().len() + name.len(),
+      c @ ActorPath::Child { .. } => c.to_string_length() + 1,
+    }
+  }
+
+  fn rec<F>(&self, p: &ActorPath, mut sb: Vec<String>, root_str: F) -> Vec<String>
+  where
+    F: Fn(&ActorPath) -> String, {
+    match p {
+      r @ ActorPath::Root { .. } => {
+        let mut root_s = root_str(r);
+        sb.push(root_s);
+        sb
+      }
+      c @ ActorPath::Child { .. } => {
+        let mut s = String::new();
+        if c.parent().is_child() {
+          s.push_str("/")
+        }
+        s.push_str(c.name());
+        sb.push(s);
+        self.rec(c.parent(), sb, root_str)
+      }
+    }
+  }
+
+  fn build_to_string<F>(&self, root_str: F) -> String
+  where
+    F: Fn(&ActorPath) -> String, {
+    let mut sb: Vec<String> = Vec::new();
+    let result = self.rec(self, sb, root_str);
+    result.into_iter().rev().collect::<Vec<_>>().join("")
+  }
+
   pub fn from_uri(uri: Uri) -> Self {
     let (address, children) = actor_path_extractor::unapply(&uri.to_string()).unwrap();
     Self::of_root(address).with_children(children)
@@ -298,7 +434,7 @@ impl ActorPath {
 
 #[cfg(test)]
 mod tests {
-  use crate::actor::actor_path::{ActorPath, ActorPathBehavior};
+  use crate::actor::actor_path::{root_partial_cmp, validate_path_element, ActorPath, ActorPathBehavior};
   use crate::actor::address::Address;
   use std::{env, panic};
 
@@ -312,7 +448,7 @@ mod tests {
   // support parsing its String rep
   #[test]
   fn test_1() {
-    let addr = Address::new("akka", "mysys");
+    let addr = Address::new("actuator", "mysys");
     let path1 = ActorPath::of_root(addr).with_child("user");
     log::debug!("path1 = {}, {:?}", path1, path1);
     let path2 = ActorPath::from_string(&path1.to_string());
@@ -357,7 +493,7 @@ mod tests {
   // create correct toString
   #[test]
   fn test_4() {
-    let a = Address::new("akka", "mysys");
+    let a = Address::new("actuator", "mysys");
     assert_eq!(ActorPath::of_root(a.clone()).to_string(), "akka://mysys/");
     assert_eq!(
       ActorPath::of_root(a.clone()).with_child("user").to_string(),
@@ -383,7 +519,7 @@ mod tests {
   // have correct path elements
   #[test]
   fn test_5() {
-    let vec = ActorPath::of_root(Address::new("akka", "mysys"))
+    let vec = ActorPath::of_root(Address::new("actuator", "mysys"))
       .with_child("user")
       .with_child("foo")
       .with_child("bar")
@@ -394,7 +530,7 @@ mod tests {
   // create correct to_string_without_address
   #[test]
   fn test_6() {
-    let a = Address::new("akka", "mysys");
+    let a = Address::new("actuator", "mysys");
     assert_eq!(ActorPath::of_root(a.clone()).to_string_without_address(), "/");
     assert_eq!(
       ActorPath::of_root(a.clone())
@@ -416,6 +552,80 @@ mod tests {
         .with_child("bar")
         .to_string_without_address(),
       "/user/foo/bar"
+    );
+  }
+
+  // validate path elements
+  #[test]
+  fn test_7() {
+    let result = panic::catch_unwind(|| validate_path_element(""));
+    assert!(result.is_err());
+  }
+
+  // create correct toStringWithAddress
+  #[test]
+  fn test_8() {
+    let local = Address::new("actuator", "mysys");
+    let a = Address::new_with_host_port("actuator", "mysys", "aaa", 2552);
+    let b = Address::new_with_host_port("actuator", "mysys", "bb", 2552);
+    let c = Address::new_with_host_port("actuator", "mysys", "cccc", 2552);
+
+    let root = ActorPath::of_root(local);
+
+    assert_eq!(root.to_string_with_address(&a), "actuator://mysys@aaa:2552/".to_owned());
+    assert_eq!(
+      root.clone().with_child("user").to_string_with_address(&a),
+      "actuator://mysys@aaa:2552/user"
+    );
+    assert_eq!(
+      root
+        .clone()
+        .with_child("user")
+        .with_child("foo")
+        .to_string_with_address(&a),
+      "actuator://mysys@aaa:2552/user/foo"
+    );
+
+    assert_eq!(root.to_string_with_address(&b), "actuator://mysys@bb:2552/".to_owned());
+    assert_eq!(
+      root.clone().with_child("user").to_string_with_address(&b),
+      "actuator://mysys@bb:2552/user"
+    );
+    assert_eq!(
+      root
+        .clone()
+        .with_child("user")
+        .with_child("foo")
+        .to_string_with_address(&b),
+      "actuator://mysys@bb:2552/user/foo"
+    );
+
+    assert_eq!(
+      root.to_string_with_address(&c),
+      "actuator://mysys@cccc:2552/".to_owned()
+    );
+    assert_eq!(
+      root.clone().with_child("user").to_string_with_address(&c),
+      "actuator://mysys@cccc:2552/user"
+    );
+    assert_eq!(
+      root
+        .clone()
+        .with_child("user")
+        .with_child("foo")
+        .to_string_with_address(&c),
+      "actuator://mysys@cccc:2552/user/foo"
+    );
+
+    let root_a = ActorPath::of_root(a);
+    assert_eq!(root_a.to_string_with_address(&b), "actuator://mysys@aaa:2552/");
+    assert_eq!(
+      root_a.clone().with_child("user").to_string_with_address(&b),
+      "actuator://mysys@aaa:2552/user"
+    );
+    assert_eq!(
+      root_a.with_child("user").with_child("foo").to_string_with_address(&b),
+      "actuator://mysys@aaa:2552/user/foo"
     );
   }
 }

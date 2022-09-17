@@ -12,7 +12,7 @@ use regex::Regex;
 pub struct Address {
   protocol: String,
   system: String,
-  host: Option<String>,
+  pub(crate) host: Option<String>,
   port: Option<u16>,
 }
 
