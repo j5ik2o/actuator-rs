@@ -137,33 +137,31 @@ impl Address {
   }
 }
 
-fn rec(s: String, fragment: Option<String>, pos: usize, acc: Vec<String>) -> Vec<String> {
-  if pos == 0 {
-    acc
-  } else {
-    log::debug!("pos = {}", pos);
-    let from = s[..pos - 1].rfind(|c| c == '/').map(|n| n as i32).unwrap_or(-1);
-    let sub = &s[((from + 1) as usize)..pos];
-    let l = if fragment.is_some() && acc.is_empty() {
-      let mut t = vec![format!("{}#{}", sub, fragment.as_ref().unwrap())];
-      let mut s = acc;
-      t.append(&mut s);
-      t
+fn path_split(s: String, fragment: Option<String>) -> Vec<String> {
+  fn rec(s: String, fragment: Option<String>, pos: usize, acc: Vec<String>) -> Vec<String> {
+    if pos == 0 {
+      acc
     } else {
-      let mut t = vec![sub.to_owned()];
-      let mut s = acc;
-      t.append(&mut s);
-      t
-    };
-    if from == -1 {
-      l
-    } else {
-      rec(s, fragment, from as usize, l)
+      let from = s[..pos - 1].rfind(|c| c == '/').map(|n| n as i32).unwrap_or(-1);
+      let sub = &s[((from + 1) as usize)..pos];
+      let l = if fragment.is_some() && acc.is_empty() {
+        let mut t = vec![format!("{}#{}", sub, fragment.as_ref().unwrap())];
+        let s = acc;
+        t.extend(s);
+        t
+      } else {
+        let mut t = vec![sub.to_owned()];
+        let s = acc;
+        t.extend(s);
+        t
+      };
+      if from == -1 {
+        l
+      } else {
+        rec(s, fragment, from as usize, l)
+      }
     }
   }
-}
-
-fn path_split(s: String, fragment: Option<String>) -> Vec<String> {
   rec(s.clone(), fragment, s.len(), Vec::new())
 }
 
@@ -338,10 +336,5 @@ mod tests {
       addresses.iter().for_each(|e| e.check_host_characters());
     });
     assert!(result.is_err());
-
-    let result = Uri::parse("http://localhost").unwrap();
-    println!("{:?}", result);
-    // let host_name = result.authority().unwrap().host_name();
-    // println!("{}", host_name);
   }
 }
