@@ -7,7 +7,7 @@ use std::hash::Hash;
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 
-use crate::actor::actor_cell::split_name_and_uid;
+use crate::actor::actor_cell::{split_name_and_uid, UNDEFINED_UID};
 use oni_comb_uri_rs::models::uri::Uri;
 
 use crate::actor::address::{actor_path_extractor, Address};
@@ -161,7 +161,7 @@ impl Display for ActorPath {
   fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
     let s = match self {
       ActorPath::Child { parent, name, uid } => {
-        let uid_str = if *uid > 0 {
+        let uid_str = if *uid > UNDEFINED_UID {
           format!("#{}", uid.to_string())
         } else {
           "".to_string()
@@ -281,7 +281,7 @@ impl ActorPathBehavior for ActorPath {
 
   fn uid(&self) -> u32 {
     match self {
-      ActorPath::Root { .. } => 0,
+      ActorPath::Root { .. } => UNDEFINED_UID,
       ActorPath::Child { uid, .. } => *uid,
     }
   }
@@ -289,7 +289,7 @@ impl ActorPathBehavior for ActorPath {
   fn with_uid(self, uid: u32) -> Self {
     match self {
       ActorPath::Root { .. } => {
-        if uid == 0 {
+        if uid == UNDEFINED_UID {
           self
         } else {
           panic!("")

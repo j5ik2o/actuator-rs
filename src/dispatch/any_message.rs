@@ -29,15 +29,12 @@ impl AnyMessage {
     T: Any + Message + 'static, {
     if self.one_time {
       match self.msg.take() {
-        Some(m) => {
-          if (*m).is::<T>() {
-            let ptr = Arc::into_raw(m).cast::<T>();
-            let s = unsafe { Arc::from_raw(ptr) };
-            Ok(s)
-          } else {
-            Err(DowncastAnyMessageError)
-          }
+        Some(m) if (*m).is::<T>() => {
+          let ptr = Arc::into_raw(m).cast::<T>();
+          let s = unsafe { Arc::from_raw(ptr) };
+          Ok(s)
         }
+        Some(_) => Err(DowncastAnyMessageError),
         None => Err(DowncastAnyMessageError),
       }
     } else {
@@ -65,7 +62,7 @@ impl Clone for AnyMessage {
 
 impl Debug for AnyMessage {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    f.write_str("AnyMessage")
+    write!(f, "AnyMessage {{ msg: ******, one_time: {} }}", self.one_time)
   }
 }
 
