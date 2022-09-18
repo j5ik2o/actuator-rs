@@ -1,4 +1,4 @@
-const UNDEFINED_UID: u32 = 0;
+pub const UNDEFINED_UID: u32 = 0;
 
 pub fn split_name_and_uid(name: &str) -> (&str, u32) {
   let i = name.chars().position(|c| c == '#');

@@ -1,8 +1,23 @@
-use crate::actor::actor_path::ActorPath;
+use std::fmt::{Display, Formatter};
+
+use crate::actor::actor_cell;
+use crate::actor::actor_path::{ActorPath, ActorPathBehavior};
+use crate::dispatch::any_message::AnyMessage;
 
 #[derive(PartialOrd)]
-pub enum ActorRef<M> {
-  Local(LocalActorRef<M>),
+pub enum ActorRef {
+  NoSender,
+  Local(LocalActorRef),
+}
+
+impl Display for ActorRef {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    if self.path().uid() == actor_cell::UNDEFINED_UID {
+      write!(f, "Actor[{}]", self.path())
+    } else {
+      write!(f, "Actor[{}#{}]", self.path(), self.path().uid())
+    }
+  }
 }
 
 pub trait ActorRefBehavior: PartialOrd {
@@ -23,12 +38,13 @@ pub trait InternalActorRefBehavior: ActorRefBehavior {
   //   fn send_system_message
 }
 
-impl<M> ActorRefBehavior for ActorRef<M> {
-  type Message = M;
+impl<M> ActorRefBehavior for ActorRef {
+  type Message = AnyMessage;
 
   fn path(&self) -> &ActorPath {
     match self {
       ActorRef::Local(inner) => &inner.path,
+      _ => panic!(""),
     }
   }
 
@@ -37,17 +53,17 @@ impl<M> ActorRefBehavior for ActorRef<M> {
   }
 }
 
-impl<M> ActorRef<M> {
+impl<M> ActorRef {
   pub fn of_local(path: ActorPath) -> Self {
     ActorRef::Local(LocalActorRef::new(path))
   }
 }
 
-pub struct LocalActorRef<M> {
+pub struct LocalActorRef {
   path: ActorPath,
 }
 
-impl<M> LocalActorRef<M> {
+impl LocalActorRef {
   pub fn new(path: ActorPath) -> Self {
     Self { path }
   }
