@@ -4,7 +4,7 @@ use crate::actor::actor_cell;
 use crate::actor::actor_path::{ActorPath, ActorPathBehavior};
 use crate::dispatch::any_message::AnyMessage;
 
-#[derive(PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum ActorRef {
   NoSender,
   Local(LocalActorRef),
@@ -38,7 +38,7 @@ pub trait InternalActorRefBehavior: ActorRefBehavior {
   //   fn send_system_message
 }
 
-impl<M> ActorRefBehavior for ActorRef {
+impl ActorRefBehavior for ActorRef {
   type Message = AnyMessage;
 
   fn path(&self) -> &ActorPath {
@@ -53,12 +53,13 @@ impl<M> ActorRefBehavior for ActorRef {
   }
 }
 
-impl<M> ActorRef {
+impl ActorRef {
   pub fn of_local(path: ActorPath) -> Self {
     ActorRef::Local(LocalActorRef::new(path))
   }
 }
 
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct LocalActorRef {
   path: ActorPath,
 }
