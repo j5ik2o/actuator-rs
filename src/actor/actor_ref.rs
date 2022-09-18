@@ -27,7 +27,6 @@ pub trait ActorRefBehavior: PartialOrd {
 }
 
 pub trait InternalActorRefBehavior: ActorRefBehavior {
-  type Message;
   fn start(&self);
   fn resume(&self);
   fn suspend(&self);
@@ -49,6 +48,30 @@ impl ActorRefBehavior for ActorRef {
   }
 
   fn tell(&self, _msg: Self::Message) {
+    todo!()
+  }
+}
+
+impl InternalActorRefBehavior for ActorRef {
+  fn start(&self) {
+    todo!()
+  }
+
+  fn resume(&self) {
+    todo!()
+  }
+
+  fn suspend(&self) {
+    todo!()
+  }
+
+  fn restart<F>(&self, panic_f: F)
+  where
+    F: Fn(), {
+    todo!()
+  }
+
+  fn stop(&self) {
     todo!()
   }
 }

@@ -12,3 +12,7 @@ pub fn split_name_and_uid(name: &str) -> (&str, u32) {
     }
   }
 }
+
+pub enum Cell {
+  ActorCell,
+}
