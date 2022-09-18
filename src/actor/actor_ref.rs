@@ -65,7 +65,7 @@ impl InternalActorRefBehavior for ActorRef {
     todo!()
   }
 
-  fn restart<F>(&self, panic_f: F)
+  fn restart<F>(&self, _panic_f: F)
   where
     F: Fn(), {
     todo!()

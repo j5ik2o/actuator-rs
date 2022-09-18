@@ -26,7 +26,7 @@ pub trait MailboxTypeBehavior {
 }
 
 impl MailboxTypeBehavior for MailboxType {
-  fn create(&self, owner: Option<ActorRef>) -> MessageQueue {
+  fn create(&self, _owner: Option<ActorRef>) -> MessageQueue {
     match self {
       MailboxType::Unbounded => MessageQueue::of_unbounded_with_queue_type(QueueType::MPSC),
       MailboxType::Bounded { capacity, .. } => {
