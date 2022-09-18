@@ -357,32 +357,31 @@ impl ActorPath {
     }
   }
 
-  fn rec<F>(&self, p: &ActorPath, mut sb: Vec<String>, root_str: F) -> Vec<String>
-  where
-    F: Fn(&ActorPath) -> String, {
-    match p {
-      r @ ActorPath::Root { .. } => {
-        let mut root_s = root_str(r);
-        sb.push(root_s);
-        sb
-      }
-      c @ ActorPath::Child { .. } => {
-        let mut s = String::new();
-        if c.parent().is_child() {
-          s.push_str("/")
-        }
-        s.push_str(c.name());
-        sb.push(s);
-        self.rec(c.parent(), sb, root_str)
-      }
-    }
-  }
-
   fn build_to_string<F>(&self, root_str: F) -> String
   where
     F: Fn(&ActorPath) -> String, {
+    fn rec<F>(p: &ActorPath, mut sb: Vec<String>, root_str: F) -> Vec<String>
+    where
+      F: Fn(&ActorPath) -> String, {
+      match p {
+        r @ ActorPath::Root { .. } => {
+          let mut root_s = root_str(r);
+          sb.push(root_s);
+          sb
+        }
+        c @ ActorPath::Child { .. } => {
+          let mut s = String::new();
+          if c.parent().is_child() {
+            s.push_str("/")
+          }
+          s.push_str(c.name());
+          sb.push(s);
+          rec(c.parent(), sb, root_str)
+        }
+      }
+    }
     let mut sb: Vec<String> = Vec::new();
-    let result = self.rec(self, sb, root_str);
+    let result = rec(self, sb, root_str);
     result.into_iter().rev().collect::<Vec<_>>().join("")
   }
 
@@ -494,17 +493,17 @@ mod tests {
   #[test]
   fn test_4() {
     let a = Address::new("actuator", "mysys");
-    assert_eq!(ActorPath::of_root(a.clone()).to_string(), "akka://mysys/");
+    assert_eq!(ActorPath::of_root(a.clone()).to_string(), "actuator://mysys/");
     assert_eq!(
       ActorPath::of_root(a.clone()).with_child("user").to_string(),
-      "akka://mysys/user"
+      "actuator://mysys/user"
     );
     assert_eq!(
       ActorPath::of_root(a.clone())
         .with_child("user")
         .with_child("foo")
         .to_string(),
-      "akka://mysys/user/foo"
+      "actuator://mysys/user/foo"
     );
     assert_eq!(
       ActorPath::of_root(a.clone())
@@ -512,7 +511,7 @@ mod tests {
         .with_child("foo")
         .with_child("bar")
         .to_string(),
-      "akka://mysys/user/foo/bar"
+      "actuator://mysys/user/foo/bar"
     );
   }
 
