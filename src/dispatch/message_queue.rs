@@ -1,5 +1,3 @@
-use std::any::Any;
-
 use crate::actor::actor_ref::ActorRef;
 use crate::dispatch::envelope::Envelope;
 use crate::queue::{
@@ -208,7 +206,7 @@ mod tests {
     let msg = AnyMessage::new(str.clone(), false);
     let mut envelope = Envelope::new(Some(msg), ActorRef::NoSender.clone());
     let _ = mq.enqueue(ActorRef::NoSender.clone(), envelope.clone()).unwrap();
-    let r = mq.dequeue().unwrap();
+    let _r = mq.dequeue().unwrap();
     let m = envelope.message_mut();
     let result = m.take::<String>().unwrap();
     assert_eq!(result, Arc::new(str));

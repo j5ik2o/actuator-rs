@@ -257,8 +257,6 @@ pub mod actor_path_extractor {
 mod tests {
   use std::{env, panic};
 
-  use oni_comb_uri_rs::models::uri::Uri;
-
   use crate::actor::address::Address;
 
   use super::*;

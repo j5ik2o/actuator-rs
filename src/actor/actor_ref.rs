@@ -48,7 +48,7 @@ impl ActorRefBehavior for ActorRef {
     }
   }
 
-  fn tell(&self, msg: Self::Message) {
+  fn tell(&self, _msg: Self::Message) {
     todo!()
   }
 }

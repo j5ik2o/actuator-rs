@@ -1,8 +1,8 @@
 use std::any::Any;
 use std::fmt;
 use std::fmt::Debug;
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+
+use std::sync::Arc;
 
 use crate::dispatch::message::Message;
 

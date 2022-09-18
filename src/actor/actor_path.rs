@@ -2,7 +2,7 @@ use std::borrow::ToOwned;
 use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::{Display, Formatter};
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
 use once_cell::sync::Lazy;
 use std::sync::Arc;
@@ -365,7 +365,7 @@ impl ActorPath {
       F: Fn(&ActorPath) -> String, {
       match p {
         r @ ActorPath::Root { .. } => {
-          let mut root_s = root_str(r);
+          let root_s = root_str(r);
           sb.push(root_s);
           sb
         }
@@ -380,7 +380,7 @@ impl ActorPath {
         }
       }
     }
-    let mut sb: Vec<String> = Vec::new();
+    let sb: Vec<String> = Vec::new();
     let result = rec(self, sb, root_str);
     result.into_iter().rev().collect::<Vec<_>>().join("")
   }
@@ -433,7 +433,7 @@ impl ActorPath {
 
 #[cfg(test)]
 mod tests {
-  use crate::actor::actor_path::{root_partial_cmp, validate_path_element, ActorPath, ActorPathBehavior};
+  use crate::actor::actor_path::{validate_path_element, ActorPath, ActorPathBehavior};
   use crate::actor::address::Address;
   use std::{env, panic};
 
