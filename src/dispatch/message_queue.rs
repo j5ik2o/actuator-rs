@@ -197,19 +197,26 @@ mod tests {
   use crate::dispatch::envelope::Envelope;
   use crate::dispatch::message_queue::{MessageQueue, MessageQueueBehavior};
   use crate::queue::QueueType;
+  use std::cmp::Ordering;
   use std::sync::Arc;
 
   #[test]
   fn test_1() {
-    let mut mq = MessageQueue::of_unbounded_with_queue_type(QueueType::Vec);
-    let str = "message".to_owned();
-    let msg = AnyMessage::new(str.clone(), false);
-    let mut envelope = Envelope::new(Some(msg), ActorRef::NoSender.clone());
-    let _ = mq.enqueue(ActorRef::NoSender.clone(), envelope.clone()).unwrap();
-    let _r = mq.dequeue().unwrap();
-    let m = envelope.message_mut();
-    let result = m.take::<String>().unwrap();
-    assert_eq!(result, Arc::new(str));
-    println!("{:?}", result);
+    let mut message_queue = MessageQueue::of_unbounded_with_queue_type(QueueType::Vec);
+
+    let send_message_text = "message".to_owned();
+    let send_message = AnyMessage::new(send_message_text.clone(), false);
+    let send_envelope = Envelope::new(Some(send_message), ActorRef::NoSender.clone());
+
+    message_queue
+      .enqueue(ActorRef::NoSender.clone(), send_envelope.clone())
+      .unwrap();
+
+    let mut receive_envelope = message_queue.dequeue().unwrap().unwrap();
+
+    let receive_message = receive_envelope.message_mut();
+    let receive_text = receive_message.take::<String>().unwrap();
+
+    assert_eq!(&*receive_text, &send_message_text);
   }
 }
