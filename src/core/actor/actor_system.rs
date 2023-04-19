@@ -161,7 +161,7 @@ mod test {
       Ok(())
     }
 
-    fn receive(&mut self, mut ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
+    fn receive(&mut self, _ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
       log::info!("TestActor received message: {:?}", msg);
       // ctx.stop(self.child_ref.as_ref().unwrap().clone());
       self.child_ref.as_mut().unwrap().tell(format!("++{}++", msg));
