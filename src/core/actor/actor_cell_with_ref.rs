@@ -29,7 +29,16 @@ impl ActorCellWithRef<AnyMessage> {
 
 impl<Msg: Message> ActorCellWithRef<Msg> {
   pub fn new(actor_cell: ActorCell<Msg>, actor_ref: ActorRef<Msg>) -> Self {
+    assert_eq!(actor_ref.actor_cell().unwrap(), actor_cell);
     Self { actor_cell, actor_ref }
+  }
+
+  pub fn actor_cell(&self) -> &ActorCell<Msg> {
+    &self.actor_cell
+  }
+
+  pub fn actor_ref(&self) -> &ActorRef<Msg> {
+    &self.actor_ref
   }
 
   pub fn to_any(self) -> ActorCellWithRef<AnyMessage> {

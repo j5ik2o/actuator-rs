@@ -411,14 +411,14 @@ impl<Msg: Message> Mailbox<Msg> {
     }
   }
 
-  async fn process_system_mailbox(&mut self, actor_cell: ActorCellWithRef<Msg>, s: Mailbox<Msg>) {
+  async fn process_system_mailbox(&mut self, actor_cell: ActorCellWithRef<Msg>, mailbox: Mailbox<Msg>) {
     let mut system_mailbox = {
       let inner = mutex_lock_with_log!(self.inner, "process_system_mailbox");
       inner.system_mailbox.clone()
     };
     system_mailbox
       .process_all_system_messages(
-        || s.is_closed(),
+        || mailbox.is_closed(),
         || {
           let terminate = {
             let inner = mutex_lock_with_log!(self.inner, "process_system_mailbox");

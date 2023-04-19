@@ -17,8 +17,8 @@ use crate::core::actor::{actor_cell, ActorError};
 use crate::core::dispatch::any_message::AnyMessage;
 use crate::core::dispatch::message::Message;
 
-mod child_state;
-mod children_container;
+pub mod child_state;
+pub mod children_container;
 
 pub struct FunctionRef {
   actor_path: ActorPath,
@@ -124,14 +124,30 @@ impl Children {
   }
 
   pub fn reserve_child(&mut self, name: &str) -> bool {
-    let mut cc = self.container.read().unwrap().deep_copy();
-    self.swap_children(self.container.clone(), Arc::new(RwLock::new(cc.reserve(name)))) || self.reserve_child(name)
+    log::debug!(
+      "reserve_child: start: name = {}, children = {:?}",
+      name,
+      self.container.read().unwrap()
+    );
+    let new_cc = {
+      let mut cc = self.container.write().unwrap();
+      cc.reserve(name)
+    };
+    let result = self.swap_children(self.container.clone(), Arc::new(RwLock::new(new_cc))) || self.reserve_child(name);
+    log::debug!(
+      "reserve_child: finished: name = {}, children = {:?}",
+      name,
+      self.container.read().unwrap()
+    );
+    result
   }
 
   pub fn un_reserve_child(&mut self, name: &str) -> bool {
-    let mut cc = self.container.read().unwrap().deep_copy();
-    self.swap_children(self.container.clone(), Arc::new(RwLock::new(cc.un_reserve(name))))
-      || self.un_reserve_child(name)
+    let new_cc = {
+      let mut cc = self.container.write().unwrap();
+      cc.un_reserve(name)
+    };
+    self.swap_children(self.container.clone(), Arc::new(RwLock::new(new_cc))) || self.un_reserve_child(name)
   }
 
   pub fn stop(&mut self, mut actor_ref: ActorRef<AnyMessage>) {
@@ -153,9 +169,17 @@ impl Children {
   }
 
   pub fn init_child(&mut self, actor_ref: ActorRef<AnyMessage>) -> Option<ChildState> {
-    let mut cc = self.container.read().unwrap().clone();
+    log::debug!(
+      "init_child: start: actor_ref = {:?}, children = {:?}",
+      actor_ref,
+      self.container.read().unwrap()
+    );
     let path = actor_ref.path();
-    match cc.get_by_name(path.name()) {
+    let get_by_name = {
+      let cc = self.container.read().unwrap().clone();
+      cc.get_by_name(path.name())
+    };
+    let result = match get_by_name {
       old @ Some(ChildState::ChildRestartStats(..)) => old,
       Some(ChildState::ChildNameReserved) => {
         let crs = ChildState::ChildRestartStats(ChildRestartStats::new(actor_ref.clone()));
@@ -166,11 +190,17 @@ impl Children {
         if self.swap_children(self.container.clone(), Arc::new(RwLock::new(new_cc))) {
           Some(crs)
         } else {
-          self.init_child(actor_ref)
+          self.init_child(actor_ref.clone())
         }
       }
       None => None,
-    }
+    };
+    log::debug!(
+      "init_child: finished: actor_ref = {:?}, children = {:?}",
+      actor_ref,
+      self.container.read().unwrap()
+    );
+    result
   }
 
   fn random_name() -> String {
@@ -208,13 +238,21 @@ impl Children {
     props: Rc<dyn Props<U>>,
     name: &str,
   ) -> ActorRef<U> {
-    log::debug!("make_child: {}: start", name);
+    log::debug!(
+      "make_child: start: name = {}, children = {:?}",
+      name,
+      self.container.read().unwrap()
+    );
     self.reserve_child(name);
     let mut actor_ref = cell.new_child_actor(self_ref, props, name);
     self.init_child(actor_ref.clone().to_any()).unwrap();
     log::debug!("children: {:?}", self.children());
     actor_ref.start();
-    log::debug!("make_child: {}: finished", name);
+    log::debug!(
+      "make_child: finished: name = {}, children = {:?}",
+      name,
+      self.container.read().unwrap()
+    );
     actor_ref
   }
 
@@ -250,14 +288,16 @@ impl Children {
   }
 
   pub fn set_children_termination_reason(&mut self, reason: SuspendReason) -> bool {
-    let cc = self.container.read().unwrap().deep_copy();
-    match cc.clone() {
-      ChildrenContainer::Terminating(c) => {
-        let mut ncc = c.deep_copy();
-        ncc.set_reason(reason.clone());
+    let cloned_cc = {
+      let cc = self.container.read().unwrap().deep_copy();
+      cc.clone()
+    };
+    match cloned_cc {
+      ChildrenContainer::Terminating(mut c) => {
+        c.set_reason(reason.clone());
         self.swap_children(
-          Arc::new(RwLock::new(cc)),
-          Arc::new(RwLock::new(ChildrenContainer::Terminating(ncc))),
+          self.container.clone(),
+          Arc::new(RwLock::new(ChildrenContainer::Terminating(c))),
         ) || self.set_children_termination_reason(reason)
       }
       _ => false,

@@ -188,6 +188,7 @@ mod test {
     actor_system_ref.tell("test-2".to_string());
     thread::sleep(Duration::from_secs(1));
     actor_system_ref.stop();
+    thread::sleep(Duration::from_secs(1));
     actor_system.join();
   }
 }

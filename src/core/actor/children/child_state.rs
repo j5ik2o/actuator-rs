@@ -52,6 +52,14 @@ impl ChildRestartStats {
     }
   }
 
+  pub fn clone_with_new_child(&self, child: ActorRef<AnyMessage>) -> Self {
+    Self::new_with(
+      child,
+      self.max_nr_of_retries_count,
+      self.restart_time_window_start_nanos,
+    )
+  }
+
   pub fn child_ref(&self) -> &ActorRef<AnyMessage> {
     &self.child
   }

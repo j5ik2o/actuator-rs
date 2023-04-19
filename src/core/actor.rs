@@ -7,6 +7,7 @@ pub mod actor_ref_provider;
 pub mod actor_system;
 pub mod address;
 pub mod children;
+pub mod children_refs;
 pub mod props;
 pub mod scheduler;
 

@@ -28,6 +28,10 @@ impl<Msg: Message> LocalActorRef<Msg> {
     }
   }
 
+  pub fn actor_cell(&self) -> ActorCell<Msg> {
+    self.actor_cell.clone()
+  }
+
   pub fn to_any(self) -> LocalActorRef<AnyMessage> {
     LocalActorRef::<AnyMessage>::new(self.actor_cell.to_any(), self.path)
   }

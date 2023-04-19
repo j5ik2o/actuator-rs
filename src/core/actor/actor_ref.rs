@@ -17,7 +17,6 @@ pub trait AnyActorRefBehavior {
 }
 
 pub trait ActorRefBehavior<Msg: Message> {
-  fn to_any(self) -> AnyActorRef;
   fn path(&self) -> ActorPath;
   fn tell(&mut self, msg: Msg);
   fn send_system_message(&mut self, message: &mut SystemMessageEntry);
@@ -45,15 +44,6 @@ pub type AnyActorRef = ActorRef<AnyMessage>;
 pub type AnyLocalActorRef = LocalActorRef<AnyMessage>;
 
 impl<Msg: Message> ActorRefBehavior<Msg> for ActorRef<Msg> {
-  fn to_any(self) -> AnyActorRef {
-    match self {
-      ActorRef::NoSender => ActorRef::NoSender,
-      ActorRef::Local(local_ref) => ActorRef::Local(local_ref.to_any()),
-      ActorRef::DeadLetters(dead_letters_ref) => ActorRef::DeadLetters(dead_letters_ref),
-      ActorRef::Mock(path) => ActorRef::Mock(path),
-    }
-  }
-
   fn path(&self) -> ActorPath {
     match self {
       ActorRef::NoSender => panic!("NoSender has no path"),
@@ -104,6 +94,15 @@ impl<Msg: Message> ActorRef<Msg> {
     ActorRef::Mock(path)
   }
 
+  pub fn to_any(self) -> AnyActorRef {
+    match self {
+      ActorRef::NoSender => ActorRef::NoSender,
+      ActorRef::Local(local_ref) => ActorRef::Local(local_ref.to_any()),
+      ActorRef::DeadLetters(dead_letters_ref) => ActorRef::DeadLetters(dead_letters_ref),
+      ActorRef::Mock(path) => ActorRef::Mock(path),
+    }
+  }
+
   pub fn as_local(&self) -> Option<&LocalActorRef<Msg>> {
     match self {
       ActorRef::Local(local_ref) => Some(local_ref),
@@ -114,6 +113,13 @@ impl<Msg: Message> ActorRef<Msg> {
   pub fn as_local_mut(&mut self) -> Option<&mut LocalActorRef<Msg>> {
     match self {
       ActorRef::Local(local_ref) => Some(local_ref),
+      _ => None,
+    }
+  }
+
+  pub fn actor_cell(&self) -> Option<ActorCell<Msg>> {
+    match self {
+      ActorRef::Local(local_ref) => Some(local_ref.actor_cell()),
       _ => None,
     }
   }
