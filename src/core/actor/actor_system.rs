@@ -145,21 +145,22 @@ mod test {
       Ok(())
     }
 
-    fn receive(&mut self, _ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
+    fn receive(&mut self, mut ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
       log::info!("TestActor received message: {:?}", msg);
-      self.child_ref.as_mut().unwrap().tell(format!("++{}++", msg));
+      ctx.stop(self.child_ref.as_ref().unwrap().clone());
+      // self.child_ref.as_mut().unwrap().tell(format!("++{}++", msg));
       Ok(())
     }
   }
 
-  #[ctor::ctor]
   fn init_logger() {
-    let _ = env::set_var("RUST_LOG", "info");
+    let _ = env::set_var("RUST_LOG", "debug");
     let _ = env_logger::builder().is_test(true).try_init();
   }
 
   #[test]
   fn test() {
+    init_logger();
     let runtime = Runtime::new().unwrap();
     let address = Address::new("tcp", "test");
     let main_actor = || Rc::new(RefCell::new(TestActor::new()));

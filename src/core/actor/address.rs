@@ -261,7 +261,6 @@ mod tests {
 
   use super::*;
 
-  #[ctor::ctor]
   fn init_logger() {
     let _ = env::set_var("RUST_LOG", "info");
     let _ = env_logger::builder().is_test(true).try_init();
@@ -269,18 +268,21 @@ mod tests {
 
   #[test]
   fn test_path_split() {
+    init_logger();
     let r = path_split("aaa/bbb/ccc".to_owned(), Some("f".to_owned()));
     assert_eq!(r, vec!["aaa", "bbb", "ccc#f"]);
   }
 
   #[test]
   fn test_relative_actor_path_unapply() {
+    init_logger();
     let r = relative_actor_path::unapply("http://localhost/aaa/bbb/ccc#f".to_string()).unwrap();
     assert_eq!(r, vec!["aaa", "bbb", "ccc#f"]);
   }
 
   #[test]
   fn test_to_string_protocol_system() {
+    init_logger();
     let address = Address::new("tcp", "test");
     println!("to_string = {}", address.to_string());
     assert_eq!(address.to_string(), "tcp://test")
@@ -288,6 +290,7 @@ mod tests {
 
   #[test]
   fn test_to_string_protocol_system_host_port() {
+    init_logger();
     let address = Address::new_with_host_port("tcp", "test", "host1", 8080);
     log::debug!("to_string = {}", address.to_string());
     assert_eq!(address.to_string(), "tcp://test@host1:8080")
@@ -295,6 +298,7 @@ mod tests {
 
   #[test]
   fn test_hash_code() {
+    init_logger();
     let address = Address::new("tcp", "test");
     let hash_code = address.hash_code();
     println!("hash_code = {}", hash_code)
@@ -302,6 +306,7 @@ mod tests {
 
   #[test]
   fn test_has_invalid_host_characters() {
+    init_logger();
     let addresses = [
       Address::new_with_host_port("actuator", "sys", "valid", 0),
       Address::new_with_host_port("actuator", "sys", "is_valid.org", 0),
@@ -318,6 +323,7 @@ mod tests {
 
   #[test]
   fn test_check_host_characters() {
+    init_logger();
     let addresses = [
       Address::new_with_host_port("actuator", "sys", "valid", 0),
       Address::new_with_host_port("actuator", "sys", "is_valid.org", 0),

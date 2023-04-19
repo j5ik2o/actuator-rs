@@ -132,7 +132,9 @@ impl DispatcherBehavior for Dispatcher {
 
   fn system_dispatch<U: Message>(&mut self, receiver: ActorCellWithRef<U>, invocation: &mut SystemMessageEntry) {
     let mut mailbox_sender = receiver.actor_cell.mailbox_sender();
+    log::debug!("system_dispatch(): mailbox_sender.system_enqueue(): start");
     mailbox_sender.system_enqueue(receiver.actor_ref.clone(), invocation);
+    log::debug!("system_dispatch(): mailbox_sender.system_enqueue(): finished");
     self.register_for_execution(receiver, false, true);
   }
 }

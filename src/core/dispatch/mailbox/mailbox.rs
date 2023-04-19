@@ -541,14 +541,14 @@ mod tests {
   use crate::core::dispatch::system_message::LNIL;
   use std::env;
 
-  #[ctor::ctor]
   fn init_logger() {
-    let _ = env::set_var("RUST_LOG", "info");
+    env::set_var("RUST_LOG", "debug");
     let _ = env_logger::builder().is_test(true).try_init();
   }
 
   #[test]
   fn test() {
+    init_logger();
     let mailbox_type = MailboxType::of_unbounded();
     let mq: MessageQueue<String> = mailbox_type.create_message_queue(None);
 

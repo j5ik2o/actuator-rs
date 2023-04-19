@@ -5,6 +5,7 @@ pub struct LoggingRwLock<T: Debug> {
   pub(crate) inner: RwLock<T>,
   name: &'static str,
   log_output: bool,
+  is_try: bool,
 }
 
 impl<T: Debug> LoggingRwLock<T> {
@@ -13,6 +14,7 @@ impl<T: Debug> LoggingRwLock<T> {
       inner: RwLock::new(data),
       name,
       log_output: false,
+      is_try: false,
     }
   }
 
@@ -33,27 +35,42 @@ impl<T: Debug> LoggingRwLock<T> {
         line,
       );
     }
-    let guard = self.inner.try_write();
-    match guard {
-      Ok(guard) => {
-        if self.log_output {
-          log::debug!(
-            "Write acquired: {} by {}:{} at {}:{}",
-            self.name,
-            function_name,
-            module_path,
-            file,
-            line,
+    if self.is_try {
+      let guard = self.inner.try_write();
+      match guard {
+        Ok(guard) => {
+          if self.log_output {
+            log::debug!(
+              "Write acquired: {} by {}:{} at {}:{}",
+              self.name,
+              function_name,
+              module_path,
+              file,
+              line,
+            );
+          }
+          return Ok(guard);
+        }
+        Err(_err) => {
+          panic!(
+            "Write failed: {} by {}:{} at {}:{}",
+            self.name, function_name, module_path, file, line,
           );
         }
-        return Ok(guard);
       }
-      Err(_err) => {
-        panic!(
-          "Write failed: {} by {}:{} at {}:{}",
-          self.name, function_name, module_path, file, line,
+    } else {
+      let guard = self.inner.write().unwrap();
+      if self.log_output {
+        log::debug!(
+          "Write acquired: {} by {}:{} at {}:{}",
+          self.name,
+          function_name,
+          module_path,
+          file,
+          line,
         );
       }
+      return Ok(guard);
     }
   }
 
@@ -74,27 +91,42 @@ impl<T: Debug> LoggingRwLock<T> {
         line,
       );
     }
-    let guard = self.inner.try_read();
-    match guard {
-      Ok(guard) => {
-        if self.log_output {
-          log::debug!(
-            "Read acquired: {} by {}:{} at {}:{}",
-            self.name,
-            function_name,
-            module_path,
-            file,
-            line,
+    if self.is_try {
+      let guard = self.inner.try_read();
+      match guard {
+        Ok(guard) => {
+          if self.log_output {
+            log::debug!(
+              "Read acquired: {} by {}:{} at {}:{}",
+              self.name,
+              function_name,
+              module_path,
+              file,
+              line,
+            );
+          }
+          return Ok(guard);
+        }
+        Err(_err) => {
+          panic!(
+            "Read failed: {} by {}:{} at {}:{}",
+            self.name, function_name, module_path, file, line,
           );
         }
-        return Ok(guard);
       }
-      Err(_err) => {
-        panic!(
-          "Read failed: {} by {}:{} at {}:{}",
-          self.name, function_name, module_path, file, line,
+    } else {
+      let guard = self.inner.read().unwrap();
+      if self.log_output {
+        log::debug!(
+          "Read acquired: {} by {}:{} at {}:{}",
+          self.name,
+          function_name,
+          module_path,
+          file,
+          line,
         );
       }
+      return Ok(guard);
     }
   }
 }

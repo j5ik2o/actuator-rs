@@ -607,7 +607,6 @@ mod tests {
   use super::*;
   use std::{env, panic};
 
-  #[ctor::ctor]
   fn init_logger() {
     let _ = env::set_var("RUST_LOG", "info");
     let _ = env_logger::builder().is_test(true).try_init();
@@ -616,6 +615,7 @@ mod tests {
   // support parsing its String rep
   #[test]
   fn test_1() {
+    init_logger();
     let addr = Address::new("actuator", "mysys");
     let path1 = ActorPath::of_root(addr).with_child("user");
     log::debug!("path1 = {}, {:?}", path1, path1);
@@ -627,6 +627,7 @@ mod tests {
   // support parsing remote paths
   #[test]
   fn test_2() {
+    init_logger();
     let remote = "akka://my_sys@host:1234/some/ref";
     let path = ActorPath::from_string(remote);
     log::debug!("path = {}, {:?}", path, path);
@@ -636,6 +637,7 @@ mod tests {
   // throw exception upon malformed paths
   #[test]
   fn test_3() {
+    init_logger();
     let result = panic::catch_unwind(|| {
       ActorPath::from_string("");
     });
@@ -661,6 +663,7 @@ mod tests {
   // create correct toString
   #[test]
   fn test_4() {
+    init_logger();
     let a = Address::new("actuator", "mysys");
     assert_eq!(ActorPath::of_root(a.clone()).to_string(), "actuator://mysys/");
     assert_eq!(
@@ -687,6 +690,7 @@ mod tests {
   // have correct path elements
   #[test]
   fn test_5() {
+    init_logger();
     let vec = ActorPath::of_root(Address::new("actuator", "mysys"))
       .with_child("user")
       .with_child("foo")
@@ -698,6 +702,7 @@ mod tests {
   // create correct to_string_without_address
   #[test]
   fn test_6() {
+    init_logger();
     let a = Address::new("actuator", "mysys");
     assert_eq!(ActorPath::of_root(a.clone()).to_string_without_address(), "/");
     assert_eq!(
@@ -726,6 +731,7 @@ mod tests {
   // validate path elements
   #[test]
   fn test_7() {
+    init_logger();
     let result = panic::catch_unwind(|| ActorPath::validate_path_element(""));
     assert!(result.is_err());
   }
@@ -733,6 +739,7 @@ mod tests {
   // create correct toStringWithAddress
   #[test]
   fn test_8() {
+    init_logger();
     let local = Address::new("actuator", "mysys");
     let a = Address::new_with_host_port("actuator", "mysys", "aaa", 2552);
     let b = Address::new_with_host_port("actuator", "mysys", "bb", 2552);
@@ -799,6 +806,7 @@ mod tests {
 
   #[test]
   fn test_9() {
+    init_logger();
     let address = Address::new_with_host_port("actuator", "system", "localhost", 1234);
     let root_path = ActorPath::of_root_with_name(address.clone(), "/root");
     let user_path = ActorPath::of_child(root_path.clone(), "user", 0);

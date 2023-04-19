@@ -368,7 +368,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
   fn mailbox_sender(&self) -> MailboxSender<Msg> {
     // log::debug!("mailbox_sender: start");
     let inner = read_lock_with_log!(self.inner, "mailbox_sender");
-    let result = inner.mailbox_sender.clone().unwrap();
+    let result = inner.mailbox_sender.as_ref().unwrap().clone();
     // log::debug!("mailbox_sender: finished");
     result
   }
@@ -427,6 +427,10 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
           let mut inner = write_lock_with_log!(self.inner, "system_invoke");
           let mut actor = inner.actor.as_mut().unwrap().borrow_mut();
           actor.around_post_stop(ctx).unwrap();
+        }
+        {
+          let mut inner = write_lock_with_log!(self.inner, "system_invoke");
+          inner.mailbox.as_mut().unwrap().become_closed();
         }
       }
       _ => {}

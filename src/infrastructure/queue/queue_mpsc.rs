@@ -143,7 +143,6 @@ mod tests {
   use super::*;
   use std::env;
 
-  #[ctor::ctor]
   fn init_logger() {
     let _ = env::set_var("RUST_LOG", "info");
     let _ = env_logger::builder().is_test(true).try_init();
@@ -151,6 +150,7 @@ mod tests {
 
   #[test]
   fn test_queue_mpsc_new() {
+    init_logger();
     let queue = QueueMPSC::<i32>::new();
 
     assert_eq!(queue.capacity(), QueueSize::Limitless);
@@ -159,6 +159,7 @@ mod tests {
 
   #[test]
   fn test_queue_mpsc_with_num_elements() {
+    init_logger();
     let num_elements = 5;
     let queue = QueueMPSC::<i32>::with_num_elements(num_elements);
 
@@ -168,6 +169,7 @@ mod tests {
 
   #[test]
   fn test_queue_mpsc_offer() {
+    init_logger();
     let queue = QueueMPSC::<i32>::new();
 
     assert_eq!(queue.capacity(), QueueSize::Limitless);
