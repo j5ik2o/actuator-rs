@@ -11,7 +11,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct ChildrenRefsInner {
   children: BTreeMap<String, ChildState>,
   reserved_names: HashSet<String>,
@@ -53,7 +53,9 @@ impl ChildrenRefs {
     for state in inner.children.values_mut() {
       match state {
         ChildState::ChildRestartStats(stats) => {
-          stats.child_ref_mut().stop();
+          let actor_ref = stats.child_ref_mut();
+          log::debug!("@@@ Stopping child: {:?}", actor_ref);
+          actor_ref.stop();
         }
         _ => {}
       }

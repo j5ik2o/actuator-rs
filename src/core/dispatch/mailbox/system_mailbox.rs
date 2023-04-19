@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use crate::core::actor::actor_cell_with_ref::ActorCellWithRef;
 use crate::core::actor::actor_ref::{ActorRef, ActorRefBehavior};
 use crate::core::dispatch::any_message::AnyMessage;
@@ -8,7 +10,6 @@ use crate::core::dispatch::system_message::system_message::SystemMessage;
 use crate::core::dispatch::system_message::system_message_entry::SystemMessageEntry;
 use crate::core::dispatch::system_message::system_message_list::SystemMessageList;
 use crate::core::dispatch::system_message::{SystemMessageQueueReaderBehavior, SystemMessageQueueWriterBehavior, LNIL};
-use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone)]
 pub struct SystemMailbox<Msg: Message> {
@@ -116,7 +117,7 @@ impl<Msg: Message> SystemMailbox<Msg> {
       message_list = message_list.tail();
     }
     if error_msg.is_some() {
-      panic!("{}", error_msg.unwrap())
+      panic!("@@@ {}", error_msg.unwrap())
     }
   }
 }
@@ -192,6 +193,7 @@ impl<Msg: Message> SystemMailboxSender<Msg> {
         true
       }
     };
+    log::debug!(">>>> system_message_opt_guard = {:?}", system_message_opt_guard);
     result
   }
 }
@@ -199,6 +201,7 @@ impl<Msg: Message> SystemMailboxSender<Msg> {
 impl<Msg: Message> SystemMessageQueueWriterBehavior<Msg> for SystemMailboxSender<Msg> {
   fn system_enqueue(&mut self, receiver: ActorRef<Msg>, message: &mut SystemMessageEntry) {
     let current_list = self.underlying.system_queue_get();
+    log::debug!(">>>> current_list = {:?}", current_list);
     let head_arc_opt = current_list.head();
     if head_arc_opt.iter().any(|head_arc| {
       let system_message_guard = head_arc.lock().unwrap();

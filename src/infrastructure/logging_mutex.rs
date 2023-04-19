@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use std::sync::{Mutex, MutexGuard};
 
+#[derive(Debug)]
 pub struct LoggingMutex<T: Debug> {
   pub(crate) inner: Mutex<T>,
   name: &'static str,

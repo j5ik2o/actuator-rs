@@ -84,6 +84,7 @@ impl<Msg: Message> ActorSystem<Msg> {
     inner.dispatcher = Some(dispatcher.clone());
     let mut main_actor_cell = ActorCell::new(
       inner.dispatcher.as_ref().unwrap().clone(),
+      main_path.clone(),
       inner.main_props.clone(),
       None,
     );
