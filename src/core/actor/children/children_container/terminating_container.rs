@@ -142,14 +142,17 @@ impl ChildrenContainerBehavior for TerminatingContainer {
 
   fn children(&self) -> Vec<ActorRef<AnyMessage>> {
     let inner = self.inner.lock().unwrap();
-    inner
+    log::debug!("@@@ Children: {:?}", inner.children);
+    let result = inner
       .children
       .values()
       .filter_map(|state| match state {
         ChildState::ChildRestartStats(stats) => Some(stats.child_ref().clone()),
         _ => None,
       })
-      .collect()
+      .collect();
+    log::debug!("@@@ Children: {:?}", result);
+    result
   }
 
   fn stats(&self) -> Vec<ChildState> {

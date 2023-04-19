@@ -113,14 +113,17 @@ impl ChildrenContainerBehavior for NormalContainer {
 
   fn children(&self) -> Vec<ActorRef<AnyMessage>> {
     let lock = self.inner.lock().unwrap();
-    lock
+    log::debug!("@@@ Children: {:?}", lock.children);
+    let result = lock
       .children
       .values()
       .filter_map(|state| match state {
         ChildState::ChildRestartStats(stats) => Some(stats.child_ref().clone()),
         _ => None,
       })
-      .collect()
+      .collect();
+    log::debug!("@@@ Children: {:?}", result);
+    result
   }
 
   fn stats(&self) -> Vec<ChildState> {

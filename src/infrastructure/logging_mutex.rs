@@ -6,6 +6,7 @@ pub struct LoggingMutex<T: Debug> {
   pub(crate) inner: Mutex<T>,
   name: &'static str,
   log_output: bool,
+  is_try: bool,
 }
 
 impl<T: Debug> LoggingMutex<T> {
@@ -14,6 +15,7 @@ impl<T: Debug> LoggingMutex<T> {
       inner: Mutex::new(data),
       name,
       log_output: false,
+      is_try: false,
     }
   }
 
@@ -34,27 +36,42 @@ impl<T: Debug> LoggingMutex<T> {
         line,
       );
     }
-    let guard = self.inner.try_lock();
-    match guard {
-      Ok(guard) => {
-        if self.log_output {
-          log::debug!(
-            "Lock acquired: {} by {}:{} at {}:{}",
-            self.name,
-            function_name,
-            module_path,
-            file,
-            line,
+    if self.is_try {
+      let guard = self.inner.try_lock();
+      match guard {
+        Ok(guard) => {
+          if self.log_output {
+            log::debug!(
+              "Lock acquired: {} by {}:{} at {}:{}",
+              self.name,
+              function_name,
+              module_path,
+              file,
+              line,
+            );
+          }
+          return Ok(guard);
+        }
+        Err(_err) => {
+          panic!(
+            "Lock failed: {} by {}:{} at {}:{}",
+            self.name, function_name, module_path, file, line,
           );
         }
-        return Ok(guard);
       }
-      Err(_err) => {
-        panic!(
-          "Lock failed: {} by {}:{} at {}:{}",
-          self.name, function_name, module_path, file, line,
+    } else {
+      let guard = self.inner.lock().unwrap();
+      if self.log_output {
+        log::debug!(
+          "Lock acquired: {} by {}:{} at {}:{}",
+          self.name,
+          function_name,
+          module_path,
+          file,
+          line,
         );
       }
+      return Ok(guard);
     }
   }
 }

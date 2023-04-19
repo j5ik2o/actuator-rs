@@ -114,7 +114,8 @@ mod test {
   use crate::core::actor::props::FunctionProps;
   use crate::core::actor::{ActorMutableBehavior, ActorResult};
   use std::cell::RefCell;
-  use std::env;
+  use std::{env, thread};
+  use tokio::runtime;
 
   #[derive(Debug, Clone)]
   struct TestChildActor;
@@ -170,14 +171,14 @@ mod test {
   }
 
   fn init_logger() {
-    let _ = env::set_var("RUST_LOG", "info");
+    let _ = env::set_var("RUST_LOG", "debug");
     let _ = env_logger::builder().is_test(true).try_init();
   }
 
   #[test]
   fn test() {
     init_logger();
-    let runtime = Runtime::new().unwrap();
+    let runtime = runtime::Builder::new_multi_thread().enable_all().build().unwrap();
     let address = Address::new("tcp", "test");
     let main_actor = || Rc::new(RefCell::new(TestActor::new()));
     let main_props = Rc::new(FunctionProps::new(move || main_actor()));
@@ -185,6 +186,8 @@ mod test {
     let mut actor_system_ref = actor_system.initialize();
     actor_system_ref.tell("test-1".to_string());
     actor_system_ref.tell("test-2".to_string());
+    thread::sleep(Duration::from_secs(1));
+    actor_system_ref.stop();
     actor_system.join();
   }
 }

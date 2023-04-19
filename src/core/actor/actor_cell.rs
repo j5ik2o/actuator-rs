@@ -23,8 +23,9 @@ use crate::core::dispatch::system_message::system_message::SystemMessage;
 use crate::core::dispatch::system_message::system_message_entry::SystemMessageEntry;
 use crate::core::dispatch::system_message::SystemMessageQueueWriterBehavior;
 
+use crate::infrastructure::logging_mutex::LoggingMutex;
 use crate::infrastructure::logging_rw_lock::LoggingRwLock;
-use crate::{read_lock_with_log, write_lock_with_log};
+use crate::mutex_lock_with_log;
 
 pub const UNDEFINED_UID: u32 = 0;
 
@@ -65,7 +66,7 @@ struct ActorCellInner<Msg: Message> {
 
 #[derive(Clone)]
 pub struct ActorCell<Msg: Message> {
-  inner: Arc<LoggingRwLock<ActorCellInner<Msg>>>,
+  inner: Arc<LoggingMutex<ActorCellInner<Msg>>>,
 }
 
 impl<Msg: Message> Debug for ActorCell<Msg> {
@@ -79,8 +80,8 @@ unsafe impl<Msg: Message> Sync for ActorCell<Msg> {}
 
 impl<Msg: Message> PartialEq for ActorCell<Msg> {
   fn eq(&self, _other: &Self) -> bool {
-    let l = read_lock_with_log!(self.inner, "eq");
-    let r = read_lock_with_log!(self.inner, "eq");
+    let l = mutex_lock_with_log!(self.inner, "eq");
+    let r = mutex_lock_with_log!(self.inner, "eq");
     l.mailbox == r.mailbox && l.current_message == r.current_message
   }
 }
@@ -88,7 +89,7 @@ impl<Msg: Message> PartialEq for ActorCell<Msg> {
 impl<Msg: Message> ActorCell<Msg> {
   pub fn new(dispatcher: Dispatcher, props: Rc<dyn Props<Msg>>, parent_ref: Option<AnyActorRef>) -> Self {
     ActorCell {
-      inner: Arc::new(LoggingRwLock::new(
+      inner: Arc::new(LoggingMutex::new(
         "inner",
         ActorCellInner {
           parent_ref,
@@ -113,19 +114,19 @@ impl<Msg: Message> ActorCell<Msg> {
     send_supervise: bool,
   ) {
     let mut mailbox = {
-      let inner = read_lock_with_log!(self.inner, "initialize");
+      let inner = mutex_lock_with_log!(self.inner, "initialize");
       inner
         .dispatcher
         .create_mailbox(Some(self_ref.clone()), mailbox_type.clone())
     };
     self.swap_mailbox(Some(&mut mailbox));
     {
-      let mut inner = write_lock_with_log!(self.inner, "initialize");
+      let mut inner = mutex_lock_with_log!(self.inner, "initialize");
       inner.mailbox_sender = Some(mailbox.sender());
       inner.dead_letter_mailbox = Some(dead_letter_mailbox);
     }
     {
-      let mut inner = write_lock_with_log!(self.inner, "initialize");
+      let mut inner = mutex_lock_with_log!(self.inner, "initialize");
       inner.mailbox.as_mut().unwrap().sender().system_enqueue(
         self_ref.clone(),
         &mut SystemMessageEntry::new(SystemMessage::of_create()),
@@ -134,7 +135,7 @@ impl<Msg: Message> ActorCell<Msg> {
 
     if send_supervise {
       let mut parent_ref = {
-        let inner = read_lock_with_log!(self.inner, "initialize");
+        let inner = mutex_lock_with_log!(self.inner, "initialize");
         inner.parent_ref.clone()
       };
       if let Some(parent_ref) = &mut parent_ref {
@@ -147,13 +148,13 @@ impl<Msg: Message> ActorCell<Msg> {
   }
 
   pub fn dead_letter_mailbox(&self) -> DeadLetterMailbox {
-    let inner = read_lock_with_log!(self.inner, "dead_letter_mailbox");
+    let inner = mutex_lock_with_log!(self.inner, "dead_letter_mailbox");
     inner.dead_letter_mailbox.as_ref().unwrap().clone()
   }
 
   fn swap_mailbox(&mut self, mailbox: Option<&mut Mailbox<Msg>>) {
     let mut self_mailbox = {
-      let inner = read_lock_with_log!(self.inner, "swap_mailbox");
+      let inner = mutex_lock_with_log!(self.inner, "swap_mailbox");
       inner.mailbox.clone()
     };
     match (self_mailbox.as_mut(), mailbox) {
@@ -166,11 +167,11 @@ impl<Msg: Message> ActorCell<Msg> {
         }
       }
       (Some(_), None) => {
-        let mut inner = write_lock_with_log!(self.inner, "swap_mailbox");
+        let mut inner = mutex_lock_with_log!(self.inner, "swap_mailbox");
         inner.mailbox = None;
       }
       (None, Some(mb)) => {
-        let mut inner = write_lock_with_log!(self.inner, "swap_mailbox");
+        let mut inner = mutex_lock_with_log!(self.inner, "swap_mailbox");
         inner.mailbox = Some(mb.clone());
       }
       (None, None) => {
@@ -183,11 +184,11 @@ impl<Msg: Message> ActorCell<Msg> {
     let rc: fn(Rc<RefCell<dyn ActorMutableBehavior<Msg>>>) -> Rc<RefCell<dyn ActorMutableBehavior<AnyMessage>>> =
       |e: Rc<RefCell<dyn ActorMutableBehavior<Msg>>>| Rc::new(RefCell::new(AnyMessageActorWrapper::new(e.clone())));
     let inner = {
-      let inner = read_lock_with_log!(self.inner, "to_any");
+      let inner = mutex_lock_with_log!(self.inner, "to_any");
       inner.clone()
     };
     ActorCell {
-      inner: Arc::new(LoggingRwLock::new(
+      inner: Arc::new(LoggingMutex::new(
         "inner",
         ActorCellInner {
           parent_ref: inner.parent_ref.clone(),
@@ -206,7 +207,7 @@ impl<Msg: Message> ActorCell<Msg> {
 
   pub fn send_message(&mut self, self_ref: ActorRef<Msg>, msg: Msg) {
     let mut dispatcher = {
-      let inner = read_lock_with_log!(self.inner, "send_message");
+      let inner = mutex_lock_with_log!(self.inner, "send_message");
       inner.dispatcher.clone()
     };
     let ctx = ActorCellWithRef::new(self.clone(), self_ref);
@@ -216,7 +217,7 @@ impl<Msg: Message> ActorCell<Msg> {
 
   pub fn send_system_message(&mut self, self_ref: ActorRef<Msg>, msg: &mut SystemMessageEntry) {
     let mut dispatcher = {
-      let inner = read_lock_with_log!(self.inner, "send_message");
+      let inner = mutex_lock_with_log!(self.inner, "send_message");
       inner.dispatcher.clone()
     };
     let ctx = ActorCellWithRef::new(self.clone(), self_ref);
@@ -231,7 +232,7 @@ impl<Msg: Message> ActorCell<Msg> {
   ) -> ActorRef<U> {
     let actor_path = ActorPath::of_child(self_ref.path(), name, new_uid());
     let dispatcher = {
-      let inner = read_lock_with_log!(self.inner, "new_child_actor");
+      let inner = mutex_lock_with_log!(self.inner, "new_child_actor");
       inner.dispatcher.clone()
     };
     let mut child_actor_cell = ActorCell::new(dispatcher.clone(), props, Some(self_ref.to_any()));
@@ -247,7 +248,7 @@ impl<Msg: Message> ActorCell<Msg> {
 
   pub fn actor_of<U: Message>(&mut self, self_ref: ActorRef<Msg>, props: Rc<dyn Props<U>>) -> ActorRef<U> {
     let mut children = {
-      let inner = read_lock_with_log!(self.inner, "actor_of");
+      let inner = mutex_lock_with_log!(self.inner, "actor_of");
       inner.children.clone()
     };
     children.actor_of(self.clone().to_any(), self_ref.to_any(), props)
@@ -262,7 +263,7 @@ impl<Msg: Message> ActorCell<Msg> {
     log::debug!("actor_with_name_of: start: name = {}", name);
     let mut children = {
       log::debug!("actor_with_name_of: self.inner.lock().unwrap(): start {}", name);
-      let inner = read_lock_with_log!(self.inner, "actor_with_name_of");
+      let inner = mutex_lock_with_log!(self.inner, "actor_with_name_of");
       log::debug!("actor_with_name_of: self.inner.lock().unwrap(): finished {}", name);
       inner.children.clone()
     };
@@ -273,7 +274,7 @@ impl<Msg: Message> ActorCell<Msg> {
 
   pub fn start(&mut self, self_ref: ActorRef<Msg>) {
     let mut dispatcher = {
-      let inner = read_lock_with_log!(self.inner, "start");
+      let inner = mutex_lock_with_log!(self.inner, "start");
       inner.dispatcher.clone()
     };
     let ctx = ActorCellWithRef::new(self.clone(), self_ref);
@@ -282,7 +283,7 @@ impl<Msg: Message> ActorCell<Msg> {
 
   pub fn stop(&mut self, self_ref: ActorRef<Msg>) {
     let mut dispatcher = {
-      let inner = read_lock_with_log!(self.inner, "stop");
+      let inner = mutex_lock_with_log!(self.inner, "stop");
       inner.dispatcher.clone()
     };
     let ctx = ActorCellWithRef::new(self.clone(), self_ref);
@@ -291,7 +292,7 @@ impl<Msg: Message> ActorCell<Msg> {
 
   pub fn suspend(&mut self, self_ref: ActorRef<Msg>) {
     let mut dispatcher = {
-      let inner = read_lock_with_log!(self.inner, "suspend");
+      let inner = mutex_lock_with_log!(self.inner, "suspend");
       inner.dispatcher.clone()
     };
     let ctx = ActorCellWithRef::new(self.clone(), self_ref);
@@ -300,7 +301,7 @@ impl<Msg: Message> ActorCell<Msg> {
 
   pub fn resume(&mut self, self_ref: ActorRef<Msg>, caused_by_failure: Option<ActorError>) {
     let mut dispatcher = {
-      let inner = read_lock_with_log!(self.inner, "resume");
+      let inner = mutex_lock_with_log!(self.inner, "resume");
       inner.dispatcher.clone()
     };
     let ctx = ActorCellWithRef::new(self.clone(), self_ref);
@@ -314,7 +315,7 @@ impl<Msg: Message> ActorCell<Msg> {
 impl ActorCell<AnyMessage> {
   pub fn to_typed<Msg: Message>(self) -> ActorCell<Msg> {
     let any_message_actor_wrapper = {
-      let inner = read_lock_with_log!(self.inner, "to_typed");
+      let inner = mutex_lock_with_log!(self.inner, "to_typed");
       if let Some(actor) = inner.actor.clone() {
         let ptr = Rc::into_raw(actor).cast::<AnyMessageActorWrapper<Msg>>();
         let rc = unsafe { Rc::from_raw(ptr) };
@@ -324,14 +325,14 @@ impl ActorCell<AnyMessage> {
       }
     };
     let props = {
-      let inner = read_lock_with_log!(self.inner, "to_typed");
+      let inner = mutex_lock_with_log!(self.inner, "to_typed");
       let ptr = Rc::into_raw(inner.props.clone()).cast::<AnyProps<Msg>>();
       let rc = unsafe { Rc::from_raw(ptr) };
       (&*rc).clone()
     };
-    let inner = read_lock_with_log!(self.inner, "to_typed");
+    let inner = mutex_lock_with_log!(self.inner, "to_typed");
     ActorCell {
-      inner: Arc::new(LoggingRwLock::new(
+      inner: Arc::new(LoggingMutex::new(
         "inner",
         ActorCellInner {
           parent_ref: inner.parent_ref.clone(),
@@ -361,13 +362,13 @@ pub trait ActorCellBehavior<Msg: Message> {
 
 impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
   fn mailbox(&self) -> Mailbox<Msg> {
-    let inner = read_lock_with_log!(self.inner, "mailbox");
+    let inner = mutex_lock_with_log!(self.inner, "mailbox");
     inner.mailbox.clone().unwrap()
   }
 
   fn mailbox_sender(&self) -> MailboxSender<Msg> {
     // log::debug!("mailbox_sender: start");
-    let inner = read_lock_with_log!(self.inner, "mailbox_sender");
+    let inner = mutex_lock_with_log!(self.inner, "mailbox_sender");
     let result = inner.mailbox_sender.as_ref().unwrap().clone();
     // log::debug!("mailbox_sender: finished");
     result
@@ -375,34 +376,34 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
 
   fn invoke(&mut self, self_ref: ActorRef<Msg>, msg: &Envelope) {
     {
-      let inner = read_lock_with_log!(self.inner, "invoke");
+      let inner = mutex_lock_with_log!(self.inner, "invoke");
       let mut current_message = inner.current_message.borrow_mut();
       *current_message = Some(msg.clone());
     }
     let ctx = ActorContext::new(self.clone(), self_ref.clone());
-    let mut inner = write_lock_with_log!(self.inner, "invoke").clone();
+    let mut inner = mutex_lock_with_log!(self.inner, "invoke").clone();
     let mut actor = inner.actor.as_mut().unwrap().borrow_mut();
     actor
       .around_receive(ctx, msg.clone().typed_message::<Msg>().unwrap())
       .unwrap();
     {
-      let inner = read_lock_with_log!(self.inner, "invoke");
+      let inner = mutex_lock_with_log!(self.inner, "invoke");
       let mut cm = inner.current_message.borrow_mut();
       *cm = None;
     }
   }
 
   fn system_invoke(&mut self, self_ref: ActorRef<Msg>, msg: &SystemMessage) {
-    log::debug!("system_invoke: start: {:?}", msg);
+    log::debug!("system_invoke: start: self_ref = {}, {:?}", self_ref.path(), msg);
     match msg {
       SystemMessage::Create { failure: _ } => {
         let actor_rc = {
           let actor_rc = {
-            let inner = read_lock_with_log!(self.inner, "system_invoke");
+            let inner = mutex_lock_with_log!(self.inner, "system_invoke");
             inner.props.new_actor()
           };
           {
-            let mut inner = write_lock_with_log!(self.inner, "system_invoke");
+            let mut inner = mutex_lock_with_log!(self.inner, "system_invoke");
             inner.actor = Some(actor_rc.clone());
           }
           actor_rc
@@ -413,24 +414,25 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
       }
       SystemMessage::Terminate => {
         {
-          let inner = read_lock_with_log!(self.inner, "system_invoke");
+          let inner = mutex_lock_with_log!(self.inner, "system_invoke");
+          log::debug!(
+            "system_invoke: path = {}, children: {:?}",
+            self_ref.path(),
+            inner.children.children()
+          );
           inner.children.children().iter_mut().for_each(|child| {
             child.stop();
           });
         }
         {
-          let mut inner = write_lock_with_log!(self.inner, "system_invoke");
+          let mut inner = mutex_lock_with_log!(self.inner, "system_invoke");
           inner.children.set_terminated();
         }
         {
           let ctx = ActorContext::new(self.clone(), self_ref);
-          let mut inner = write_lock_with_log!(self.inner, "system_invoke");
+          let mut inner = mutex_lock_with_log!(self.inner, "system_invoke");
           let mut actor = inner.actor.as_mut().unwrap().borrow_mut();
           actor.around_post_stop(ctx).unwrap();
-        }
-        {
-          let mut inner = write_lock_with_log!(self.inner, "system_invoke");
-          inner.mailbox.as_mut().unwrap().become_closed();
         }
       }
       _ => {}

@@ -55,10 +55,10 @@ impl Children {
   fn swap_children(
     &mut self,
     old_container: Arc<RwLock<ChildrenContainer>>,
-    new_container: Arc<RwLock<ChildrenContainer>>,
+    mut new_container: Arc<RwLock<ChildrenContainer>>,
   ) -> bool {
     if Arc::ptr_eq(&self.container, &old_container) {
-      self.container = new_container;
+      std::mem::swap(&mut self.container, &mut new_container);
       true
     } else {
       let mut swap = false;
@@ -70,7 +70,7 @@ impl Children {
         }
       }
       if swap {
-        self.container = new_container;
+        std::mem::swap(&mut self.container, &mut new_container);
       }
       swap
     }
@@ -153,16 +153,17 @@ impl Children {
   }
 
   pub fn init_child(&mut self, actor_ref: ActorRef<AnyMessage>) -> Option<ChildState> {
-    let mut cc = self.container.read().unwrap().deep_copy();
+    let mut cc = self.container.read().unwrap().clone();
     let path = actor_ref.path();
     match cc.get_by_name(path.name()) {
       old @ Some(ChildState::ChildRestartStats(..)) => old,
       Some(ChildState::ChildNameReserved) => {
         let crs = ChildState::ChildRestartStats(ChildRestartStats::new(actor_ref.clone()));
-        if self.swap_children(
-          self.container.clone(),
-          Arc::new(RwLock::new(cc.add(path.name(), crs.clone()))),
-        ) {
+        let new_cc = {
+          let mut cc = self.container.write().unwrap();
+          cc.add(path.name(), crs.clone())
+        };
+        if self.swap_children(self.container.clone(), Arc::new(RwLock::new(new_cc))) {
           Some(crs)
         } else {
           self.init_child(actor_ref)
@@ -207,12 +208,13 @@ impl Children {
     props: Rc<dyn Props<U>>,
     name: &str,
   ) -> ActorRef<U> {
-    // log::debug!("make_child: {}: start", name);
+    log::debug!("make_child: {}: start", name);
     self.reserve_child(name);
     let mut actor_ref = cell.new_child_actor(self_ref, props, name);
     self.init_child(actor_ref.clone().to_any()).unwrap();
+    log::debug!("children: {:?}", self.children());
     actor_ref.start();
-    // log::debug!("make_child: {}: finished", name);
+    log::debug!("make_child: {}: finished", name);
     actor_ref
   }
 
