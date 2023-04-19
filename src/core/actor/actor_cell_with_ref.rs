@@ -19,10 +19,10 @@ unsafe impl<Msg: Message> Send for ActorCellWithRef<Msg> {}
 unsafe impl<Msg: Message> Sync for ActorCellWithRef<Msg> {}
 
 impl ActorCellWithRef<AnyMessage> {
-  pub fn to_typed<Msg: Message>(self) -> ActorCellWithRef<Msg> {
+  pub fn to_typed<Msg: Message>(self, validate_actor: bool) -> ActorCellWithRef<Msg> {
     ActorCellWithRef {
-      actor_cell: self.actor_cell.to_typed(),
-      actor_ref: self.actor_ref.to_typed(),
+      actor_cell: self.actor_cell.to_typed(validate_actor),
+      actor_ref: self.actor_ref.to_typed(validate_actor),
     }
   }
 }
@@ -41,8 +41,11 @@ impl<Msg: Message> ActorCellWithRef<Msg> {
     &self.actor_ref
   }
 
-  pub fn to_any(self) -> ActorCellWithRef<AnyMessage> {
-    ActorCellWithRef::new(self.actor_cell.to_any(), self.actor_ref.to_any())
+  pub fn to_any(self, validate_actor: bool) -> ActorCellWithRef<AnyMessage> {
+    ActorCellWithRef::new(
+      self.actor_cell.to_any(validate_actor),
+      self.actor_ref.to_any(validate_actor),
+    )
   }
 
   pub fn invoke(&mut self, msg: &Envelope) {

@@ -217,7 +217,7 @@ impl<Msg: Message> MessageQueueWriterBehavior<Msg> for MessageQueueWriter<Msg> {
     match self {
       MessageQueueWriter::Unbounded(queue) => queue.enqueue(receiver, handle),
       MessageQueueWriter::Bounded(queue) => queue.enqueue(receiver, handle),
-      MessageQueueWriter::DeadLetter(queue) => queue.enqueue(receiver.to_any(), handle),
+      MessageQueueWriter::DeadLetter(queue) => queue.enqueue(receiver.to_any(true), handle),
     }
   }
 }
@@ -278,7 +278,7 @@ mod tests {
     let message_queue = MessageQueue::of_unbounded_with_queue_type_with_num_elements(QueueType::Vec, 3);
     let no_sender: ActorRef<String> = ActorRef::NoSender;
     let send_message_text = "message".to_owned();
-    let send_envelope = Envelope::new_with_sender(send_message_text.clone(), no_sender.clone().to_any());
+    let send_envelope = Envelope::new_with_sender(send_message_text.clone(), no_sender.clone().to_any(true));
 
     let mut writer = message_queue.writer();
     writer.enqueue(no_sender, send_envelope.clone()).unwrap();

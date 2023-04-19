@@ -32,8 +32,8 @@ impl<Msg: Message> LocalActorRef<Msg> {
     self.actor_cell.clone()
   }
 
-  pub fn to_any(self) -> LocalActorRef<AnyMessage> {
-    LocalActorRef::<AnyMessage>::new(self.actor_cell.to_any(), self.path)
+  pub fn to_any(self, validate_actor: bool) -> LocalActorRef<AnyMessage> {
+    LocalActorRef::<AnyMessage>::new(self.actor_cell.to_any(validate_actor), self.path)
   }
 
   pub fn path(&self) -> ActorPath {
@@ -41,7 +41,7 @@ impl<Msg: Message> LocalActorRef<Msg> {
   }
 
   pub fn tell_any(&mut self, self_ref: ActorRef<AnyMessage>, msg: AnyMessage) {
-    self.actor_cell.clone().to_any().send_message(self_ref, msg);
+    self.actor_cell.clone().to_any(true).send_message(self_ref, msg);
   }
 
   pub fn tell(&mut self, self_ref: ActorRef<Msg>, message: Msg) {
@@ -70,10 +70,10 @@ impl<Msg: Message> LocalActorRef<Msg> {
 }
 
 impl LocalActorRef<AnyMessage> {
-  pub fn to_typed<Msg: Message>(self) -> LocalActorRef<Msg> {
+  pub fn to_typed<Msg: Message>(self, validate_actor: bool) -> LocalActorRef<Msg> {
     LocalActorRef {
       _phantom: std::marker::PhantomData,
-      actor_cell: self.actor_cell.to_typed(),
+      actor_cell: self.actor_cell.to_typed(validate_actor),
       path: self.path,
     }
   }

@@ -175,9 +175,10 @@ impl Children {
       self.container.read().unwrap()
     );
     let path = actor_ref.path();
+    let name = path.name();
     let get_by_name = {
       let cc = self.container.read().unwrap().clone();
-      cc.get_by_name(path.name())
+      cc.get_by_name(name)
     };
     let result = match get_by_name {
       old @ Some(ChildState::ChildRestartStats(..)) => old,
@@ -245,7 +246,7 @@ impl Children {
     );
     self.reserve_child(name);
     let mut actor_ref = cell.new_child_actor(self_ref, props, name);
-    self.init_child(actor_ref.clone().to_any()).unwrap();
+    self.init_child(actor_ref.clone().to_any(false)).unwrap();
     log::debug!("children: {:?}", self.children());
     actor_ref.start();
     log::debug!(

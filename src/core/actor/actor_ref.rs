@@ -60,7 +60,7 @@ impl<Msg: Message> ActorRefBehavior<Msg> for ActorRef<Msg> {
       ActorRef::Local(local_ref) => local_ref.tell(cloned_self, msg),
       ActorRef::DeadLetters(dead_letters_ref) => {
         let any_message = AnyMessage::new(msg);
-        dead_letters_ref.tell(cloned_self.to_any(), any_message)
+        dead_letters_ref.tell(cloned_self.to_any(true), any_message)
       }
       ActorRef::Mock(_) => {}
     }
@@ -71,7 +71,9 @@ impl<Msg: Message> ActorRefBehavior<Msg> for ActorRef<Msg> {
     match self {
       ActorRef::NoSender => {}
       ActorRef::Local(local_ref) => local_ref.send_system_message(cloned_self, message),
-      ActorRef::DeadLetters(dead_letters_ref) => dead_letters_ref.send_system_message(cloned_self.to_any(), message),
+      ActorRef::DeadLetters(dead_letters_ref) => {
+        dead_letters_ref.send_system_message(cloned_self.to_any(true), message)
+      }
       ActorRef::Mock(_) => {}
     }
   }
@@ -94,10 +96,10 @@ impl<Msg: Message> ActorRef<Msg> {
     ActorRef::Mock(path)
   }
 
-  pub fn to_any(self) -> AnyActorRef {
+  pub fn to_any(self, validate_actor: bool) -> AnyActorRef {
     match self {
       ActorRef::NoSender => ActorRef::NoSender,
-      ActorRef::Local(local_ref) => ActorRef::Local(local_ref.to_any()),
+      ActorRef::Local(local_ref) => ActorRef::Local(local_ref.to_any(validate_actor)),
       ActorRef::DeadLetters(dead_letters_ref) => ActorRef::DeadLetters(dead_letters_ref),
       ActorRef::Mock(path) => ActorRef::Mock(path),
     }
@@ -158,10 +160,10 @@ impl<Msg: Message> ActorRef<Msg> {
 }
 
 impl ActorRef<AnyMessage> {
-  pub fn to_typed<Msg: Message>(self) -> ActorRef<Msg> {
+  pub fn to_typed<Msg: Message>(self, validate_actor: bool) -> ActorRef<Msg> {
     match self {
       ActorRef::NoSender => ActorRef::NoSender,
-      ActorRef::Local(local_ref) => ActorRef::Local(local_ref.to_typed()),
+      ActorRef::Local(local_ref) => ActorRef::Local(local_ref.to_typed(validate_actor)),
       ActorRef::DeadLetters(dead_letters_ref) => ActorRef::DeadLetters(dead_letters_ref),
       ActorRef::Mock(path) => ActorRef::Mock(path),
     }

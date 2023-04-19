@@ -102,7 +102,7 @@ impl<Msg: Message> ActorMutableBehavior<AnyMessage> for AnyMessageActorWrapper<M
   fn receive(&mut self, ctx: ActorContext<AnyMessage>, msg: AnyMessage) -> ActorResult<()> {
     let typed_msg = msg.take::<Msg>().unwrap();
     let mut actor = self.actor.borrow_mut();
-    actor.around_receive(ctx.to_typed(), typed_msg)
+    actor.around_receive(ctx.to_typed(true), typed_msg)
   }
 }
 
@@ -147,6 +147,6 @@ impl<Msg: Message> ActorMutableBehavior<AnyMessage> for AnyMessageActorFunctionW
   fn receive(&mut self, ctx: ActorContext<AnyMessage>, msg: AnyMessage) -> ActorResult<()> {
     let typed_msg = msg.take::<Msg>().unwrap();
     let mut actor = self.actor.as_mut().unwrap().borrow_mut();
-    actor.around_receive(ctx.to_typed(), typed_msg)
+    actor.around_receive(ctx.to_typed(true), typed_msg)
   }
 }

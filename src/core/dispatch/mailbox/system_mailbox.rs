@@ -109,7 +109,7 @@ impl<Msg: Message> SystemMailbox<Msg> {
         let system_message = message_list.head().clone().unwrap();
         let mut system_message_guard = system_message.lock().unwrap();
         system_message_guard.unlink();
-        let self_ref = actor_cell.actor_ref.clone().to_any();
+        let self_ref = actor_cell.actor_ref.clone().to_any(true);
         if let Some(dlm) = dead_letter_mailbox.as_mut() {
           dlm.system_enqueue(self_ref, &mut system_message_guard);
         }

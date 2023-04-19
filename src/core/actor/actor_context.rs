@@ -22,12 +22,12 @@ impl<Msg: Message> ActorContext<Msg> {
 }
 
 impl ActorContext<AnyMessage> {
-  pub fn to_typed<Msg: Message>(self) -> ActorContext<Msg> {
+  pub fn to_typed<Msg: Message>(self, validate_actor: bool) -> ActorContext<Msg> {
     ActorContext {
       _phantom: std::marker::PhantomData,
       actor_cell: ActorCellWithRef::new(
-        self.actor_cell.actor_cell.to_typed(),
-        self.actor_cell.actor_ref.to_typed(),
+        self.actor_cell.actor_cell.to_typed(validate_actor),
+        self.actor_cell.actor_ref.to_typed(validate_actor),
       ),
     }
   }

@@ -64,7 +64,6 @@ struct ActorCellInner<Msg: Message> {
   props: Rc<dyn Props<Msg>>,
   actor: Option<Rc<RefCell<dyn ActorMutableBehavior<Msg>>>>,
   children: ChildrenRefs,
-  // children: Children,
   current_message: Rc<RefCell<Option<Envelope>>>,
 }
 
@@ -167,7 +166,23 @@ impl<Msg: Message> ActorCell<Msg> {
     inner.dead_letter_mailbox.as_ref().unwrap().clone()
   }
 
-  pub fn to_any(self) -> ActorCell<AnyMessage> {
+  fn check_actor<U: Message>(
+    validate_actor: bool,
+    actor: Option<Rc<RefCell<dyn ActorMutableBehavior<U>>>>,
+  ) -> Option<Rc<RefCell<dyn ActorMutableBehavior<U>>>> {
+    match &actor {
+      None => {
+        if validate_actor {
+          panic!("ActorCell not initialized")
+        } else {
+          actor
+        }
+      }
+      Some(_) => actor,
+    }
+  }
+
+  pub fn to_any(self, validate_actor: bool) -> ActorCell<AnyMessage> {
     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell not initialized");
     }
@@ -186,7 +201,7 @@ impl<Msg: Message> ActorCell<Msg> {
           dead_letter_mailbox: inner.dead_letter_mailbox.clone(),
           mailbox_sender: inner.mailbox_sender.clone().map(MailboxSender::to_any),
           props: inner.props.to_any(),
-          actor: inner.actor.clone().map(rc),
+          actor: Self::check_actor(validate_actor, inner.actor.clone().map(rc)),
           children: inner.children.clone(),
           current_message: inner.current_message.clone(),
         },
@@ -233,7 +248,12 @@ impl<Msg: Message> ActorCell<Msg> {
       let inner = mutex_lock_with_log!(self.inner, "new_child_actor");
       inner.dispatcher.clone()
     };
-    let mut child_actor_cell = ActorCell::new(dispatcher.clone(), actor_path.clone(), props, Some(self_ref.to_any()));
+    let mut child_actor_cell = ActorCell::new(
+      dispatcher.clone(),
+      actor_path.clone(),
+      props,
+      Some(self_ref.to_any(true)),
+    );
     let actor_ref = ActorRef::of_local(child_actor_cell.clone(), actor_path);
     child_actor_cell.initialize(
       actor_ref.clone(),
@@ -252,7 +272,7 @@ impl<Msg: Message> ActorCell<Msg> {
       let inner = mutex_lock_with_log!(self.inner, "actor_of");
       inner.children.clone()
     };
-    children.actor_of(self.clone().to_any(), self_ref.to_any(), props)
+    children.actor_of(self.clone().to_any(true), self_ref.to_any(true), props)
   }
 
   pub fn actor_with_name_of<U: Message>(
@@ -271,7 +291,7 @@ impl<Msg: Message> ActorCell<Msg> {
       log::debug!("actor_with_name_of: self.inner.lock().unwrap(): finished {}", name);
       inner.children.clone()
     };
-    let result = children.actor_with_name_of(self.clone().to_any(), self_ref.to_any(), props, name);
+    let result = children.actor_with_name_of(self.clone().to_any(true), self_ref.to_any(true), props, name);
     log::debug!("actor_with_name_of: finished: name = {}", name);
     result
   }
@@ -356,7 +376,7 @@ impl<Msg: Message> ActorCell<Msg> {
 }
 
 impl ActorCell<AnyMessage> {
-  pub fn to_typed<Msg: Message>(self) -> ActorCell<Msg> {
+  pub fn to_typed<Msg: Message>(self, validate_actor: bool) -> ActorCell<Msg> {
     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell not initialized");
     }
@@ -389,7 +409,7 @@ impl ActorCell<AnyMessage> {
           dead_letter_mailbox: inner.dead_letter_mailbox.clone(),
           mailbox_sender: inner.mailbox_sender.clone().map(MailboxSender::to_typed),
           props: props.underlying,
-          actor: any_message_actor_wrapper.map(|e| e.actor),
+          actor: Self::check_actor(validate_actor, any_message_actor_wrapper.map(|e| e.actor)),
           children: inner.children.clone(),
           current_message: inner.current_message.clone(),
         },

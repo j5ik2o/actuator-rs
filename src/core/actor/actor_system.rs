@@ -69,6 +69,7 @@ impl<Msg: Message> ActorSystem<Msg> {
   pub fn initialize(&mut self) -> ActorRef<Msg> {
     let mut inner = self.inner.write().unwrap();
     let main_path = ActorPath::of_root_with_name(inner.address.clone(), &inner.name);
+
     let dead_letters_path = main_path.clone().with_child("dead-letters");
     let dead_letters_ref = ActorRef::of_dead_letters(dead_letters_path.clone());
     let mailboxes = Arc::new(Mutex::new(Mailboxes::new(
@@ -76,18 +77,12 @@ impl<Msg: Message> ActorSystem<Msg> {
       dead_letters_ref.clone(),
     )));
 
+    let dispatcher = Dispatcher::new(inner.runtime.clone(), mailboxes.clone());
+    inner.dispatcher = Some(dispatcher.clone());
     inner.dead_letters = Some(dead_letters_ref.clone());
     inner.mailboxes = Some(mailboxes.clone());
 
-    let dispatcher = Dispatcher::new(inner.runtime.clone(), inner.mailboxes.as_ref().unwrap().clone());
-
-    inner.dispatcher = Some(dispatcher.clone());
-    let mut main_actor_cell = ActorCell::new(
-      inner.dispatcher.as_ref().unwrap().clone(),
-      main_path.clone(),
-      inner.main_props.clone(),
-      None,
-    );
+    let mut main_actor_cell = ActorCell::new(dispatcher.clone(), main_path.clone(), inner.main_props.clone(), None);
     let main_actor_ref = ActorRef::of_local(main_actor_cell.clone(), main_path.clone());
     let dead_letter_mailbox = mailboxes.lock().unwrap().dead_letter_mailbox();
 
