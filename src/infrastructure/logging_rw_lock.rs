@@ -13,7 +13,7 @@ impl<T: Debug> LoggingRwLock<T> {
     LoggingRwLock {
       inner: RwLock::new(data),
       name,
-      log_output: false,
+      log_output: true,
       is_try: false,
     }
   }

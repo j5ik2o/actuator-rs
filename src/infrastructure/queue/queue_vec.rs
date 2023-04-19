@@ -139,14 +139,14 @@ mod tests {
   use super::*;
   use std::env;
 
-  // #[ctor::ctor]
-  // fn init_logger() {
-  //   let _ = env::set_var("RUST_LOG", "info");
-  //   let _ = env_logger::builder().is_test(true).try_init();
-  // }
+  fn init_logger() {
+    env::set_var("RUST_LOG", "info");
+    let _ = env_logger::builder().is_test(true).try_init();
+  }
 
   #[test]
   fn test_queue_vec_new() {
+    init_logger();
     let queue = QueueVec::<i32>::new();
 
     assert_eq!(queue.capacity(), QueueSize::Limitless);
@@ -155,6 +155,7 @@ mod tests {
 
   #[test]
   fn test_queue_vec_with_num_elements() {
+    init_logger();
     let num_elements = 5;
     let queue = QueueVec::<i32>::with_num_elements(num_elements);
 
@@ -164,6 +165,7 @@ mod tests {
 
   #[test]
   fn test_queue_vec_with_elements() {
+    init_logger();
     let elements = vec![1, 2, 3];
     let queue = QueueVec::<i32>::with_elements(elements.into_iter());
 
@@ -177,6 +179,7 @@ mod tests {
 
   #[test]
   fn test_queue_vec_offer() {
+    init_logger();
     let queue = QueueVec::<i32>::new();
 
     assert_eq!(queue.capacity(), QueueSize::Limitless);
