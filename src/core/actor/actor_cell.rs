@@ -1,8 +1,8 @@
 use std::cell::RefCell;
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
 use std::rc::Rc;
 use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::Arc;
 
 use rand::{thread_rng, RngCore};
 
@@ -10,7 +10,7 @@ use crate::core::actor::actor_cell_with_ref::ActorCellWithRef;
 use crate::core::actor::actor_context::ActorContext;
 use crate::core::actor::actor_path::ActorPath;
 use crate::core::actor::actor_ref::{ActorRef, ActorRefBehavior, AnyActorRef};
-use crate::core::actor::children::Children;
+
 use crate::core::actor::children_refs::ChildrenRefs;
 use crate::core::actor::props::{AnyProps, Props};
 use crate::core::actor::{ActorError, ActorMutableBehavior, AnyMessageActorWrapper};
@@ -26,7 +26,7 @@ use crate::core::dispatch::system_message::system_message_entry::SystemMessageEn
 use crate::core::dispatch::system_message::SystemMessageQueueWriterBehavior;
 
 use crate::infrastructure::logging_mutex::LoggingMutex;
-use crate::infrastructure::logging_rw_lock::LoggingRwLock;
+
 use crate::mutex_lock_with_log;
 
 pub const UNDEFINED_UID: u32 = 0;
@@ -127,7 +127,7 @@ impl<Msg: Message> ActorCell<Msg> {
     self_ref: ActorRef<Msg>,
     mailbox_type: MailboxType,
     dead_letter_mailbox: DeadLetterMailbox,
-    send_supervise: bool,
+    _send_supervise: bool,
   ) {
     if self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell already initialized");

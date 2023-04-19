@@ -1,6 +1,6 @@
 use crate::core::actor::actor_cell::ActorCell;
-use crate::core::actor::actor_path::{ActorPath, ActorPathBehavior};
-use crate::core::actor::actor_ref::{ActorRef, ActorRefBehavior};
+use crate::core::actor::actor_path::ActorPath;
+use crate::core::actor::actor_ref::ActorRef;
 use crate::core::actor::children::child_state::{ChildRestartStats, ChildState};
 use crate::core::actor::props::Props;
 use crate::core::dispatch::any_message::AnyMessage;

@@ -1,5 +1,5 @@
 use crate::core::actor::actor_cell::{ActorCell, ActorCellBehavior};
-use crate::core::actor::actor_ref::{ActorRef, ActorRefBehavior};
+use crate::core::actor::actor_ref::ActorRef;
 use crate::core::actor::props::Props;
 use crate::core::dispatch::any_message::AnyMessage;
 use crate::core::dispatch::envelope::Envelope;

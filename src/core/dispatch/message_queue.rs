@@ -1,4 +1,4 @@
-use crate::core::actor::actor_ref::{ActorRef, ActorRefBehavior};
+use crate::core::actor::actor_ref::ActorRef;
 use crate::core::dispatch::envelope::Envelope;
 use crate::core::dispatch::message::Message;
 
@@ -253,7 +253,6 @@ impl<Msg: Message> MessageQueueReaderBehavior<Msg> for MessageQueueReader<Msg> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::core::actor::actor_ref::ActorRefBehavior;
 
   #[test]
   fn test_message_queue_of_unbounded_with_queue_type() {

@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::core::actor::actor_cell_with_ref::ActorCellWithRef;
-use crate::core::actor::actor_ref::{ActorRef, ActorRefBehavior};
+use crate::core::actor::actor_ref::ActorRef;
 use crate::core::dispatch::any_message::AnyMessage;
 use crate::core::dispatch::message::Message;
 use crate::core::dispatch::system_message::earliest_first_system_message_list::EarliestFirstSystemMessageList;
