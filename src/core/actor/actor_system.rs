@@ -2,7 +2,6 @@ use crate::core::actor::actor_cell::ActorCell;
 use crate::core::actor::actor_path::{ActorPath, ActorPathBehavior};
 use crate::core::actor::actor_ref::ActorRef;
 use crate::core::actor::address::Address;
-use crate::core::actor::children::Children;
 use crate::core::actor::props::Props;
 use crate::core::dispatch::any_message::AnyMessage;
 use crate::core::dispatch::dispatcher::Dispatcher;
@@ -10,6 +9,7 @@ use crate::core::dispatch::mailbox::mailbox_type::MailboxType;
 use crate::core::dispatch::mailboxes::Mailboxes;
 use crate::core::dispatch::message::Message;
 
+use crate::core::actor::children_refs::ChildrenRefs;
 use std::fmt::Debug;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex, RwLock};
@@ -40,7 +40,7 @@ pub struct ActorSystemInner<Msg: Message> {
   dead_letters: Option<ActorRef<AnyMessage>>,
   dispatcher: Option<Dispatcher>,
   mailboxes: Option<Arc<Mutex<Mailboxes>>>,
-  children: Children,
+  children: ChildrenRefs,
   main_props: Rc<dyn Props<Msg>>,
 }
 
@@ -60,7 +60,7 @@ impl<Msg: Message> ActorSystem<Msg> {
         dead_letters: None,
         dispatcher: None,
         mailboxes: None,
-        children: Children::new(),
+        children: ChildrenRefs::new(),
         main_props,
       })),
     }
