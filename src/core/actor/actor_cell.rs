@@ -558,7 +558,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
         actor.around_pre_start(ctx).unwrap();
       }
       SystemMessage::Terminate => {
-        let mut is_empty = false;
+        let mut is_empty;
         {
           let inner = mutex_lock_with_log!(self.inner, "system_invoke");
           log::debug!("system_invoke: path = {}", self_ref.path());
@@ -597,7 +597,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
 impl<Msg: Message> ActorCell<Msg> {
   fn tell_terminated_to_parent(&mut self, self_ref: ActorRef<Msg>) {
     let mut parent_ref_opt = {
-      let mut inner = mutex_lock_with_log!(self.inner, "system_invoke");
+      let inner = mutex_lock_with_log!(self.inner, "system_invoke");
       inner.parent_ref.clone()
     };
     if let Some(parent_ref) = &mut parent_ref_opt {
