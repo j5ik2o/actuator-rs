@@ -16,8 +16,8 @@ impl<T: Debug> LoggingMutex<T> {
     LoggingMutex {
       inner: Mutex::new(data),
       name: name.to_string(),
-      lock_log_output: false,
-      drop_log_output: true,
+      lock_log_output: true,
+      drop_log_output: false,
       is_try: false,
     }
   }

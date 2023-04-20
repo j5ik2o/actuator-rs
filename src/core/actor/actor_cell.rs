@@ -8,8 +8,8 @@ use rand::{thread_rng, RngCore};
 
 use crate::core::actor::actor_cell_with_ref::ActorCellWithRef;
 use crate::core::actor::actor_context::ActorContext;
-use crate::core::actor::actor_path::ActorPath;
-use crate::core::actor::actor_ref::{ActorRef, ActorRefBehavior, AnyActorRef};
+use crate::core::actor::actor_path::{ActorPath, ActorPathBehavior};
+use crate::core::actor::actor_ref::{ActorRef, ActorRefBehavior, AnyActorRef, AnyActorRefBehavior};
 
 use crate::core::actor::children_refs::ChildrenRefs;
 use crate::core::actor::props::{AnyProps, Props};
@@ -56,6 +56,7 @@ pub fn split_name_and_uid(name: &str) -> (&str, u32) {
 #[derive(Debug, Clone, PartialEq)]
 pub enum AutoReceivedMessage {
   PoisonPill,
+  Terminated(ActorRef<AnyMessage>),
 }
 
 #[derive(Debug, Clone)]
@@ -502,11 +503,26 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
     let mut inner = mutex_lock_with_log!(self.inner, "invoke").clone();
     let mut actor = inner.actor.as_mut().unwrap().borrow_mut();
 
-    let auto_received_message = msg.clone().typed_message::<AutoReceivedMessage>();
+    let auto_received_message = msg.clone().typed_message::<AnyMessage>();
     match auto_received_message {
-      Ok(_msg) => {
-        // TODO: PoisonPill
-      }
+      Ok(msg) => match msg.take::<AutoReceivedMessage>() {
+        Ok(AutoReceivedMessage::Terminated(ar)) => {
+          log::info!(
+            "invoke: Terminated: self_ref = {},  path = {}",
+            self_ref.path().name().to_string(),
+            ar.path().to_string()
+          );
+          let is_empty = {
+            let mut inner = mutex_lock_with_log!(self.inner, "invoke");
+            inner.children.un_reserve_child(ar.path().name());
+            inner.children.is_empty()
+          };
+          if is_empty {
+            self.tell_terminated_to_parent(self_ref);
+          }
+        }
+        _ => {}
+      },
       Err(_) => {
         actor
           .around_receive(ctx, msg.clone().typed_message::<Msg>().unwrap())
@@ -542,15 +558,15 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
         actor.around_pre_start(ctx).unwrap();
       }
       SystemMessage::Terminate => {
+        let mut is_empty = false;
         {
           let inner = mutex_lock_with_log!(self.inner, "system_invoke");
-          log::debug!("system_invoke: path = {}", self_ref.path(),);
-          inner.children.stop_all_children();
+          log::debug!("system_invoke: path = {}", self_ref.path());
+          is_empty = inner.children.is_empty();
+          if inner.children.non_empty() {
+            inner.children.stop_all_children();
+          }
         }
-        // {
-        //   let mut inner = mutex_lock_with_log!(self.inner, "system_invoke");
-        //   inner.children.set_terminated();
-        // }
         {
           let mut inner = mutex_lock_with_log!(self.inner, "system_invoke");
           match inner.actor {
@@ -563,11 +579,34 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
               log::warn!("system_invoke: actor({}) is None", self_ref.path());
             }
           }
-          inner.actor = None;
+        }
+        if is_empty {
+          self.tell_terminated_to_parent(self_ref);
+          {
+            let mut inner = mutex_lock_with_log!(self.inner, "system_invoke");
+            inner.actor = None;
+          }
         }
       }
       _ => {}
     }
     log::info!("system_invoke: finished");
+  }
+}
+
+impl<Msg: Message> ActorCell<Msg> {
+  fn tell_terminated_to_parent(&mut self, self_ref: ActorRef<Msg>) {
+    let mut parent_ref_opt = {
+      let mut inner = mutex_lock_with_log!(self.inner, "system_invoke");
+      inner.parent_ref.clone()
+    };
+    if let Some(parent_ref) = &mut parent_ref_opt {
+      let terminated = AutoReceivedMessage::Terminated(self_ref.clone().to_any(false));
+      let msg = AnyMessage::new(terminated);
+      log::info!("parent_ref.tell_any(msg) = {:?}", msg);
+      parent_ref.tell_any(msg);
+    } else {
+      // TODO: すべての子アクターが停止したことを通知をする
+    }
   }
 }

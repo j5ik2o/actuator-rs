@@ -35,6 +35,19 @@ impl ChildrenRefs {
     }
   }
 
+  pub fn clear(&mut self) {
+    *self = Self::new();
+  }
+
+  pub fn is_empty(&self) -> bool {
+    let inner = self.inner.lock().unwrap();
+    inner.children.is_empty()
+  }
+
+  pub fn non_empty(&self) -> bool {
+    !self.is_empty()
+  }
+
   pub fn children(&self) -> Vec<ActorRef<AnyMessage>> {
     let inner = self.inner.lock().unwrap();
     let result = inner
@@ -106,6 +119,7 @@ impl ChildrenRefs {
     let mut inner = self.inner.lock().unwrap();
     if inner.reserved_names.contains(name) {
       inner.reserved_names.remove(name);
+      inner.children.remove(name);
       true
     } else {
       false

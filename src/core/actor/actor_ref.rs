@@ -13,7 +13,7 @@ pub mod dead_letters_ref;
 pub mod local_actor_ref;
 
 pub trait AnyActorRefBehavior {
-  fn tell_any(&self, msg: AnyMessage);
+  fn tell_any(&mut self, msg: AnyMessage);
 }
 
 pub trait ActorRefBehavior<Msg: Message> {
@@ -41,6 +41,18 @@ unsafe impl<Msg: Message> Sync for ActorRef<Msg> {}
 
 pub type AnyActorRef = ActorRef<AnyMessage>;
 pub type AnyLocalActorRef = LocalActorRef<AnyMessage>;
+
+impl<Msg: Message> AnyActorRefBehavior for ActorRef<Msg> {
+  fn tell_any(&mut self, msg: AnyMessage) {
+    let cloned_self = self.clone().to_any(true);
+    match self {
+      ActorRef::NoSender => {}
+      ActorRef::Local(local_ref) => local_ref.tell_any(cloned_self, msg),
+      ActorRef::DeadLetters(dead_letters_ref) => dead_letters_ref.tell(cloned_self, msg),
+      ActorRef::Mock(_) => {}
+    }
+  }
+}
 
 impl<Msg: Message> ActorRefBehavior<Msg> for ActorRef<Msg> {
   fn path(&self) -> ActorPath {
