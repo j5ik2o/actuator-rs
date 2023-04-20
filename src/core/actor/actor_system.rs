@@ -159,9 +159,9 @@ mod test {
   impl ActorMutableBehavior<String> for TestActor {
     fn pre_start(&mut self, mut ctx: ActorContext<String>) -> ActorResult<()> {
       log::info!("TestActor start");
-      // let props = Rc::new(FunctionProps::<String>::new(|| Rc::new(RefCell::new(TestChildActor))));
-      // let child_ref = ctx.spawn(props, "child");
-      // self.child_ref = Some(child_ref);
+      let props = Rc::new(FunctionProps::<String>::new(|| Rc::new(RefCell::new(TestChildActor))));
+      let child_ref = ctx.spawn(props, "child");
+      self.child_ref = Some(child_ref);
       Ok(())
     }
 
@@ -194,7 +194,9 @@ mod test {
     let mut actor_system = ActorSystem::new(runtime, address, "test", main_props);
     let mut actor_system_ref = actor_system.initialize();
     actor_system_ref.tell("test-1".to_string());
-    actor_system_ref.tell("test-2".to_string());
+
+    thread::sleep(Duration::from_secs(5));
+
     actor_system.join();
   }
 }

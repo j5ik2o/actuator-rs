@@ -542,11 +542,11 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
         actor.around_pre_start(ctx).unwrap();
       }
       SystemMessage::Terminate => {
-        // {
-        //   let inner = mutex_lock_with_log!(self.inner, "system_invoke");
-        //   log::debug!("system_invoke: path = {}", self_ref.path(),);
-        //   inner.children.stop_all_children();
-        // }
+        {
+          let inner = mutex_lock_with_log!(self.inner, "system_invoke");
+          log::debug!("system_invoke: path = {}", self_ref.path(),);
+          inner.children.stop_all_children();
+        }
         // {
         //   let mut inner = mutex_lock_with_log!(self.inner, "system_invoke");
         //   inner.children.set_terminated();
@@ -561,12 +561,6 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
             }
             None => {
               log::warn!("system_invoke: actor({}) is None", self_ref.path());
-              // let mut dispatcher = {
-              //   let inner = mutex_lock_with_log!(self.inner, "stop");
-              //   inner.dispatcher.clone()
-              // };
-              // let ctx = ActorCellWithRef::new(self.clone(), self_ref);
-              // dispatcher.system_dispatch(ctx, &mut SystemMessageEntry::new(SystemMessage::of_terminate()))
             }
           }
           inner.actor = None;
