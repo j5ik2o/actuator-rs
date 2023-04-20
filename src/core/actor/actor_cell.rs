@@ -558,7 +558,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
         actor.around_pre_start(ctx).unwrap();
       }
       SystemMessage::Terminate => {
-        let mut is_empty;
+        let is_empty;
         {
           let inner = mutex_lock_with_log!(self.inner, "system_invoke");
           log::debug!("system_invoke: path = {}", self_ref.path());
