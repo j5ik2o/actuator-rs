@@ -97,8 +97,10 @@ impl<Msg: Message> ActorSystem<Msg> {
   }
 
   pub fn join(&self) {
-    let inner = self.inner.read().unwrap();
-    inner.dispatcher.as_ref().unwrap().join();
+    loop {
+      let inner = self.inner.read().unwrap();
+      inner.dispatcher.as_ref().unwrap().join();
+    }
   }
 }
 
@@ -159,28 +161,28 @@ mod test {
   impl ActorMutableBehavior<String> for TestActor {
     fn pre_start(&mut self, mut ctx: ActorContext<String>) -> ActorResult<()> {
       log::info!("TestActor start");
-      let props = Rc::new(FunctionProps::<String>::new(|| Rc::new(RefCell::new(TestChildActor))));
-      let child_ref = ctx.spawn(props, "child");
-      self.child_ref = Some(child_ref);
+      // let props = Rc::new(FunctionProps::<String>::new(|| Rc::new(RefCell::new(TestChildActor))));
+      // let child_ref = ctx.spawn(props, "child");
+      // self.child_ref = Some(child_ref);
       Ok(())
     }
 
-    fn post_stop(&mut self, _ctx: ActorContext<String>) -> ActorResult<()> {
+    fn post_stop(&mut self, mut ctx: ActorContext<String>) -> ActorResult<()> {
       log::info!("TestActor stopped");
       Ok(())
     }
 
     fn receive(&mut self, mut ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
       log::info!("TestActor received message: {:?}", msg);
-      // ctx.stop(ctx.self_ref().clone());
       // ctx.stop(self.child_ref.as_ref().unwrap().clone());
-      self.child_ref.as_mut().unwrap().tell(format!("++{}++", msg));
+      ctx.stop(ctx.self_ref().clone());
+      // self.child_ref.as_mut().unwrap().tell(format!("++{}++", msg));
       Ok(())
     }
   }
 
   fn init_logger() {
-    let _ = env::set_var("RUST_LOG", "debug");
+    let _ = env::set_var("RUST_LOG", "info");
     let _ = env_logger::builder().is_test(true).try_init();
   }
 
@@ -196,6 +198,7 @@ mod test {
     actor_system_ref.tell("test-1".to_string());
     // actor_system_ref.tell("test-2".to_string());
     thread::sleep(Duration::from_secs(3));
+    actor_system_ref.stop();
     actor_system.join();
   }
 }

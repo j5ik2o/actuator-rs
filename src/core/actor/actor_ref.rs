@@ -19,7 +19,6 @@ pub trait AnyActorRefBehavior {
 pub trait ActorRefBehavior<Msg: Message> {
   fn path(&self) -> ActorPath;
   fn tell(&mut self, msg: Msg);
-  fn send_system_message(&mut self, message: &mut SystemMessageEntry);
 }
 
 pub trait ActorRefInnerBehavior<Msg: Message> {
@@ -61,18 +60,6 @@ impl<Msg: Message> ActorRefBehavior<Msg> for ActorRef<Msg> {
       ActorRef::DeadLetters(dead_letters_ref) => {
         let any_message = AnyMessage::new(msg);
         dead_letters_ref.tell(cloned_self.to_any(true), any_message)
-      }
-      ActorRef::Mock(_) => {}
-    }
-  }
-
-  fn send_system_message(&mut self, message: &mut SystemMessageEntry) {
-    let cloned_self = self.clone();
-    match self {
-      ActorRef::NoSender => {}
-      ActorRef::Local(local_ref) => local_ref.send_system_message(cloned_self, message),
-      ActorRef::DeadLetters(dead_letters_ref) => {
-        dead_letters_ref.send_system_message(cloned_self.to_any(true), message)
       }
       ActorRef::Mock(_) => {}
     }
@@ -123,6 +110,18 @@ impl<Msg: Message> ActorRef<Msg> {
     match self {
       ActorRef::Local(local_ref) => Some(local_ref.actor_cell()),
       _ => None,
+    }
+  }
+
+  pub fn send_system_message(&mut self, message: &mut SystemMessageEntry) {
+    let cloned_self = self.clone();
+    match self {
+      ActorRef::NoSender => {}
+      ActorRef::Local(local_ref) => local_ref.send_system_message(cloned_self, message),
+      ActorRef::DeadLetters(dead_letters_ref) => {
+        dead_letters_ref.send_system_message(cloned_self.to_any(true), message)
+      }
+      ActorRef::Mock(_) => {}
     }
   }
 

@@ -323,6 +323,7 @@ impl<Msg: Message> ActorCell<Msg> {
   }
 
   pub fn start(&mut self, self_ref: ActorRef<Msg>) {
+    log::info!("start: start: self_ref = {}", self_ref.path());
     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell not initialized");
     }
@@ -333,8 +334,9 @@ impl<Msg: Message> ActorCell<Msg> {
       let inner = mutex_lock_with_log!(self.inner, "start");
       inner.dispatcher.clone()
     };
-    let ctx = ActorCellWithRef::new(self.clone(), self_ref);
-    dispatcher.attach(ctx)
+    let ctx = ActorCellWithRef::new(self.clone(), self_ref.clone());
+    dispatcher.attach(ctx);
+    log::info!("start: finished: self_ref = {}", self_ref.path());
   }
 
   fn exists_actor(&self) -> bool {
@@ -353,6 +355,7 @@ impl<Msg: Message> ActorCell<Msg> {
   }
 
   pub fn stop(&mut self, self_ref: ActorRef<Msg>) {
+    log::info!("stop: start: self_ref = {}", self_ref.path());
     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell not initialized");
     }
@@ -363,8 +366,9 @@ impl<Msg: Message> ActorCell<Msg> {
       let inner = mutex_lock_with_log!(self.inner, "stop");
       inner.dispatcher.clone()
     };
-    let ctx = ActorCellWithRef::new(self.clone(), self_ref);
-    dispatcher.system_dispatch(ctx, &mut SystemMessageEntry::new(SystemMessage::of_terminate()))
+    let ctx = ActorCellWithRef::new(self.clone(), self_ref.clone());
+    dispatcher.system_dispatch(ctx, &mut SystemMessageEntry::new(SystemMessage::of_terminate()));
+    log::info!("stop: finished: self_ref = {}", self_ref.path());
   }
 
   pub fn suspend(&mut self, self_ref: ActorRef<Msg>) {
@@ -503,7 +507,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
   }
 
   fn system_invoke(&mut self, self_ref: ActorRef<Msg>, msg: &SystemMessage) {
-    log::debug!("system_invoke: start: self_ref = {}, {:?}", self_ref.path(), msg);
+    log::info!("system_invoke: start: self_ref = {}, {:?}", self_ref.path(), msg);
     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell not initialized");
     }
@@ -523,11 +527,11 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
         actor.around_pre_start(ctx).unwrap();
       }
       SystemMessage::Terminate => {
-        {
-          let inner = mutex_lock_with_log!(self.inner, "system_invoke");
-          log::debug!("system_invoke: path = {}", self_ref.path(),);
-          inner.children.stop_all_children();
-        }
+        // {
+        //   let inner = mutex_lock_with_log!(self.inner, "system_invoke");
+        //   log::debug!("system_invoke: path = {}", self_ref.path(),);
+        //   inner.children.stop_all_children();
+        // }
         // {
         //   let mut inner = mutex_lock_with_log!(self.inner, "system_invoke");
         //   inner.children.set_terminated();
@@ -541,7 +545,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
               actor_ref_mut.around_post_stop(ctx).unwrap();
             }
             None => {
-              log::warn!(">>> system_invoke: actor({}) is None", self_ref.path());
+              log::warn!("system_invoke: actor({}) is None", self_ref.path());
               // let mut dispatcher = {
               //   let inner = mutex_lock_with_log!(self.inner, "stop");
               //   inner.dispatcher.clone()
@@ -555,6 +559,6 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
       }
       _ => {}
     }
-    log::debug!("system_invoke: finished");
+    log::info!("system_invoke: finished");
   }
 }
