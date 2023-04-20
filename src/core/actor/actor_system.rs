@@ -165,7 +165,7 @@ mod test {
       Ok(())
     }
 
-    fn post_stop(&mut self, mut ctx: ActorContext<String>) -> ActorResult<()> {
+    fn post_stop(&mut self, _ctx: ActorContext<String>) -> ActorResult<()> {
       log::info!("TestActor stopped");
       Ok(())
     }

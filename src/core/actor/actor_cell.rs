@@ -504,7 +504,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
 
     let auto_received_message = msg.clone().typed_message::<AutoReceivedMessage>();
     match auto_received_message {
-      Ok(msg) => {
+      Ok(_msg) => {
         // TODO: PoisonPill
       }
       Err(_) => {
