@@ -67,11 +67,35 @@ struct ActorCellInner<Msg: Message> {
   current_message: Rc<RefCell<Option<Envelope>>>,
 }
 
+// impl<Msg: Message> Drop for ActorCellInner<Msg> {
+//   fn drop(&mut self) {
+//     if self.actor.is_some() {
+//       log::error!("=======> ActorCellInner({}) dropped before actor", self.path);
+//     }
+//     log::debug!("=======> Dropping ActorCellInner({})", self.path);
+//   }
+// }
+//
 #[derive(Debug, Clone)]
 pub struct ActorCell<Msg: Message> {
   initialized: Arc<AtomicBool>,
   inner: Arc<LoggingMutex<ActorCellInner<Msg>>>,
+  path: ActorPath,
 }
+
+// impl<Msg: Message> Drop for ActorCell<Msg> {
+//   fn drop(&mut self) {
+//     let sc = Arc::strong_count(&self.inner);
+//     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
+//       log::error!(
+//         "******> ActorCell({}) dropped before initialized, sc = {}",
+//         self.path,
+//         sc
+//       );
+//     }
+//     log::debug!("******> Dropping ActorCell({}), sc = {}", self.path, sc);
+//   }
+// }
 
 // impl<Msg: Message> Debug for ActorCell<Msg> {
 //   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -102,9 +126,10 @@ impl<Msg: Message> ActorCell<Msg> {
     parent_ref: Option<AnyActorRef>,
   ) -> Self {
     ActorCell {
+      path: path.clone(),
       initialized: Arc::new(AtomicBool::new(false)),
       inner: Arc::new(LoggingMutex::new(
-        "inner",
+        &format!("ActorCell#inner: {}", path.to_string()),
         ActorCellInner {
           path,
           parent_ref,
@@ -190,9 +215,10 @@ impl<Msg: Message> ActorCell<Msg> {
       |e: Rc<RefCell<dyn ActorMutableBehavior<Msg>>>| Rc::new(RefCell::new(AnyMessageActorWrapper::new(e.clone())));
     let inner = mutex_lock_with_log!(self.inner, "to_any");
     ActorCell {
+      path: inner.path.clone(),
       initialized: self.initialized.clone(),
       inner: Arc::new(LoggingMutex::new(
-        "inner",
+        &format!("ActorCell#inner: {}", inner.path.to_string()),
         ActorCellInner {
           path: inner.path.clone(),
           parent_ref: inner.parent_ref.clone(),
@@ -398,9 +424,10 @@ impl ActorCell<AnyMessage> {
     };
     let inner = mutex_lock_with_log!(self.inner, "to_typed");
     ActorCell {
-      initialized: self.initialized,
+      path: inner.path.clone(),
+      initialized: self.initialized.clone(),
       inner: Arc::new(LoggingMutex::new(
-        "inner",
+        &format!("ActorCell#inner: {}", inner.path.to_string()),
         ActorCellInner {
           path: inner.path.clone(),
           parent_ref: inner.parent_ref.clone(),
@@ -444,7 +471,18 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
 
   fn invoke(&mut self, self_ref: ActorRef<Msg>, msg: &Envelope) {
     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
-      panic!("ActorCell not initialized");
+      panic!(
+        "ActorCell not initialized: path = {}, msg = {:?}",
+        self_ref.path(),
+        msg.clone().typed_message::<Msg>().unwrap()
+      );
+    }
+    if !self.exists_actor() {
+      panic!(
+        "ActorCell not exists actor: path = {}, msg = {:?}",
+        self_ref.path(),
+        msg.clone().typed_message::<Msg>().unwrap()
+      );
     }
     {
       let inner = mutex_lock_with_log!(self.inner, "invoke");
@@ -487,11 +525,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
       SystemMessage::Terminate => {
         {
           let inner = mutex_lock_with_log!(self.inner, "system_invoke");
-          log::debug!(
-            "system_invoke: path = {}, children: {:?}",
-            self_ref.path(),
-            inner.children.children()
-          );
+          log::debug!("system_invoke: path = {}", self_ref.path(),);
           inner.children.stop_all_children();
         }
         // {
@@ -516,6 +550,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
               // dispatcher.system_dispatch(ctx, &mut SystemMessageEntry::new(SystemMessage::of_terminate()))
             }
           }
+          inner.actor = None;
         }
       }
       _ => {}

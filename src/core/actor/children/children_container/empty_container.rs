@@ -71,7 +71,6 @@ impl ChildrenContainerBehavior for EmptyContainer {
   }
 
   fn children(&self) -> Vec<ActorRef<AnyMessage>> {
-    log::debug!("@@@ Children: []");
     vec![]
   }
 

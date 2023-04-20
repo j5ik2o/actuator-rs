@@ -3,17 +3,19 @@ use std::sync::RwLock;
 
 pub struct LoggingRwLock<T: Debug> {
   pub(crate) inner: RwLock<T>,
-  name: &'static str,
-  log_output: bool,
+  name: String,
+  lock_log_output: bool,
+  drop_log_output: bool,
   is_try: bool,
 }
 
 impl<T: Debug> LoggingRwLock<T> {
-  pub fn new(name: &'static str, data: T) -> Self {
+  pub fn new(name: &str, data: T) -> Self {
     LoggingRwLock {
       inner: RwLock::new(data),
-      name,
-      log_output: true,
+      name: name.to_string(),
+      lock_log_output: false,
+      drop_log_output: true,
       is_try: false,
     }
   }
@@ -25,7 +27,7 @@ impl<T: Debug> LoggingRwLock<T> {
     file: &'static str,
     line: u32,
   ) -> std::sync::LockResult<std::sync::RwLockWriteGuard<T>> {
-    if self.log_output {
+    if self.lock_log_output {
       log::debug!(
         "Attempting to write: {} by {}:{} at {}:{}",
         self.name,
@@ -39,7 +41,7 @@ impl<T: Debug> LoggingRwLock<T> {
       let guard = self.inner.try_write();
       match guard {
         Ok(guard) => {
-          if self.log_output {
+          if self.lock_log_output {
             log::debug!(
               "Write acquired: {} by {}:{} at {}:{}",
               self.name,
@@ -60,7 +62,7 @@ impl<T: Debug> LoggingRwLock<T> {
       }
     } else {
       let guard = self.inner.write().unwrap();
-      if self.log_output {
+      if self.lock_log_output {
         log::debug!(
           "Write acquired: {} by {}:{} at {}:{}",
           self.name,
@@ -81,7 +83,7 @@ impl<T: Debug> LoggingRwLock<T> {
     file: &'static str,
     line: u32,
   ) -> std::sync::LockResult<std::sync::RwLockReadGuard<T>> {
-    if self.log_output {
+    if self.lock_log_output {
       log::debug!(
         "Attempting to read: {} by {}:{} at {}:{}",
         self.name,
@@ -95,7 +97,7 @@ impl<T: Debug> LoggingRwLock<T> {
       let guard = self.inner.try_read();
       match guard {
         Ok(guard) => {
-          if self.log_output {
+          if self.lock_log_output {
             log::debug!(
               "Read acquired: {} by {}:{} at {}:{}",
               self.name,
@@ -116,7 +118,7 @@ impl<T: Debug> LoggingRwLock<T> {
       }
     } else {
       let guard = self.inner.read().unwrap();
-      if self.log_output {
+      if self.lock_log_output {
         log::debug!(
           "Read acquired: {} by {}:{} at {}:{}",
           self.name,
@@ -151,8 +153,8 @@ macro_rules! write_lock_with_log {
 
 impl<T: Debug> Drop for LoggingRwLock<T> {
   fn drop(&mut self) {
-    if self.log_output {
-      log::debug!("dropping: name = {}", self.name);
+    if self.drop_log_output {
+      log::debug!(":::::>>> Dropped RwLock: name = {}", self.name);
     }
   }
 }

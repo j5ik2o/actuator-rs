@@ -99,7 +99,7 @@ impl Mailbox<AnyMessage> {
     let inner = mutex_lock_with_log!(self.inner, "to_typed");
     Mailbox {
       inner: Arc::new(LoggingMutex::new(
-        "inner",
+        "Mailbox#inner",
         MailboxInner {
           mailbox_type: inner.mailbox_type.clone(),
           current_status: inner.current_status.clone(),
@@ -119,7 +119,7 @@ impl<Msg: Message> Mailbox<Msg> {
   pub fn new_with_message_queue(mailbox_type: MailboxType, message_queue: MessageQueue<Msg>) -> Self {
     Self {
       inner: Arc::new(LoggingMutex::new(
-        "inner",
+        "Mailbox#inner",
         MailboxInner {
           mailbox_type,
           current_status: Arc::new(AtomicU32::new(MailboxStatus::Open as u32)),
@@ -138,7 +138,7 @@ impl<Msg: Message> Mailbox<Msg> {
     let inner = mutex_lock_with_log!(self.inner, "to_any");
     Mailbox {
       inner: Arc::new(LoggingMutex::new(
-        "inner",
+        "Mailbox#inner",
         MailboxInner {
           mailbox_type: inner.mailbox_type.clone(),
           current_status: inner.current_status.clone(),

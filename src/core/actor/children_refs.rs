@@ -1,15 +1,18 @@
+use std::collections::{BTreeMap, HashSet};
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+
+use base64_string_rs::Base64StringFactory;
+use rand::RngCore;
+
 use crate::core::actor::actor_cell::ActorCell;
 use crate::core::actor::actor_path::ActorPath;
 use crate::core::actor::actor_ref::ActorRef;
+use crate::core::actor::actor_ref::ActorRefBehavior;
 use crate::core::actor::children::child_state::{ChildRestartStats, ChildState};
 use crate::core::actor::props::Props;
 use crate::core::dispatch::any_message::AnyMessage;
 use crate::core::dispatch::message::Message;
-use base64_string_rs::Base64StringFactory;
-use rand::RngCore;
-use std::collections::{BTreeMap, HashSet};
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone)]
 struct ChildrenRefsInner {
@@ -34,7 +37,6 @@ impl ChildrenRefs {
 
   pub fn children(&self) -> Vec<ActorRef<AnyMessage>> {
     let inner = self.inner.lock().unwrap();
-    log::debug!("@@ inner = {:?}", inner);
     let result = inner
       .children
       .values()
@@ -43,8 +45,6 @@ impl ChildrenRefs {
         _ => None,
       })
       .collect();
-    log::debug!("@@ result = {:?}", result);
-
     result
   }
 
@@ -54,7 +54,6 @@ impl ChildrenRefs {
       match state {
         ChildState::ChildRestartStats(stats) => {
           let actor_ref = stats.child_ref_mut();
-          log::debug!("@@@ Stopping child: {:?}", actor_ref);
           actor_ref.stop();
         }
         _ => {}
@@ -114,11 +113,6 @@ impl ChildrenRefs {
   }
 
   pub fn init_child(&mut self, actor_ref: ActorRef<AnyMessage>, name: &str) -> Option<ChildState> {
-    log::debug!(
-      "init_child: start: name = {}, children = {:?}",
-      name,
-      self.inner.lock().unwrap()
-    );
     let result = {
       let inner = self.inner.lock().unwrap();
       inner.children.get(name).cloned()
@@ -141,11 +135,6 @@ impl ChildrenRefs {
         Some(new_state)
       }
     });
-    log::debug!(
-      "init_child: finished: name = {}, children = {:?}",
-      name,
-      self.inner.lock().unwrap()
-    );
     r
   }
 
@@ -156,21 +145,17 @@ impl ChildrenRefs {
     props: Rc<dyn Props<U>>,
     name: &str,
   ) -> ActorRef<U> {
-    log::debug!(
-      "make_child: start: name = {}, children = {:?}",
-      name,
-      self.inner.lock().unwrap()
-    );
+    // log::debug!("make_child: start: name = {}, children = {}", name, self_ref.path());
     self.reserve_child(name);
     let mut actor_ref = cell.new_child_actor(self_ref, props, name);
     self.init_child(actor_ref.clone().to_any(false), name).unwrap();
-    log::debug!("children: {:?}", self.children());
+    // log::debug!("children: {:?}", self.children());
     actor_ref.start();
-    log::debug!(
-      "make_child: finished: name = {}, children = {:?}",
-      name,
-      self.inner.lock().unwrap()
-    );
+    // log::debug!(
+    //   "make_child: finished: name = {}, children = {:?}",
+    //   name,
+    //   self.inner.lock().unwrap()
+    // );
     actor_ref
   }
 

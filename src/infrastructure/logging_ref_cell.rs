@@ -3,16 +3,20 @@ use std::fmt::Debug;
 
 pub struct LoggingRefCell<T: Debug> {
   inner: RefCell<T>,
-  name: &'static str,
-  log_output: bool,
+  name: String,
+  borrow_log_output: bool,
+  drop_log_output: bool,
+  is_try: bool,
 }
 
 impl<T: Debug> LoggingRefCell<T> {
-  pub fn new(name: &'static str, value: T) -> Self {
+  pub fn new(name: &str, value: T) -> Self {
     Self {
       inner: RefCell::new(value),
-      name,
-      log_output: true,
+      name: name.to_string(),
+      borrow_log_output: false,
+      drop_log_output: true,
+      is_try: false,
     }
   }
 
@@ -23,7 +27,7 @@ impl<T: Debug> LoggingRefCell<T> {
     file: &'static str,
     line: u32,
   ) -> std::cell::Ref<T> {
-    if self.log_output {
+    if self.borrow_log_output {
       log::debug!(
         "Attempting to borrow: {} by {}:{} at {}:{}",
         self.name,
@@ -33,26 +37,41 @@ impl<T: Debug> LoggingRefCell<T> {
         line,
       );
     }
-    match self.inner.try_borrow() {
-      Ok(guard) => {
-        if self.log_output {
-          log::debug!(
-            "Borrow acquired: {} by {}:{} at {}:{}",
-            self.name,
-            function_name,
-            module_path,
-            file,
-            line,
+    if self.is_try {
+      match self.inner.try_borrow() {
+        Ok(guard) => {
+          if self.borrow_log_output {
+            log::debug!(
+              "Borrow acquired: {} by {}:{} at {}:{}",
+              self.name,
+              function_name,
+              module_path,
+              file,
+              line,
+            );
+          }
+          return guard;
+        }
+        Err(err) => {
+          panic!(
+            "Borrow failed: {} by {}:{} at {}:{}, err: {:?}",
+            self.name, function_name, module_path, file, line, err
           );
         }
-        return guard;
       }
-      Err(err) => {
-        panic!(
-          "Borrow failed: {} by {}:{} at {}:{}, err: {:?}",
-          self.name, function_name, module_path, file, line, err
+    } else {
+      let guard = self.inner.borrow();
+      if self.borrow_log_output {
+        log::debug!(
+          "Borrow acquired: {} by {}:{} at {}:{}",
+          self.name,
+          function_name,
+          module_path,
+          file,
+          line,
         );
       }
+      return guard;
     }
   }
 
@@ -63,7 +82,7 @@ impl<T: Debug> LoggingRefCell<T> {
     file: &'static str,
     line: u32,
   ) -> std::cell::RefMut<T> {
-    if self.log_output {
+    if self.borrow_log_output {
       log::debug!(
         "Attempting to borrow_mut: {} by {}:{} at {}:{}",
         self.name,
@@ -73,26 +92,41 @@ impl<T: Debug> LoggingRefCell<T> {
         line,
       );
     }
-    match self.inner.try_borrow_mut() {
-      Ok(guard) => {
-        if self.log_output {
-          log::debug!(
-            "Borrow_mut acquired: {} by {}:{} at {}:{}",
-            self.name,
-            function_name,
-            module_path,
-            file,
-            line,
+    if self.is_try {
+      match self.inner.try_borrow_mut() {
+        Ok(guard) => {
+          if self.borrow_log_output {
+            log::debug!(
+              "Borrow_mut acquired: {} by {}:{} at {}:{}",
+              self.name,
+              function_name,
+              module_path,
+              file,
+              line,
+            );
+          }
+          return guard;
+        }
+        Err(err) => {
+          panic!(
+            "Borrow_mut failed: {} by {}:{} at {}:{}, err: {:?}",
+            self.name, function_name, module_path, file, line, err
           );
         }
-        return guard;
       }
-      Err(err) => {
-        panic!(
-          "Borrow_mut failed: {} by {}:{} at {}:{}, err: {:?}",
-          self.name, function_name, module_path, file, line, err
+    } else {
+      let guard = self.inner.borrow_mut();
+      if self.borrow_log_output {
+        log::debug!(
+          "Borrow_mut acquired: {} by {}:{} at {}:{}",
+          self.name,
+          function_name,
+          module_path,
+          file,
+          line,
         );
       }
+      return guard;
     }
   }
 }
@@ -113,8 +147,8 @@ macro_rules! borrow_mut_with_log {
 
 impl<T: Debug> Drop for LoggingRefCell<T> {
   fn drop(&mut self) {
-    if self.log_output {
-      log::debug!("dropping: name = {}", self.name);
+    if self.drop_log_output {
+      log::debug!(":::::>>> Dropped RefCell: name = {}", self.name);
     }
   }
 }

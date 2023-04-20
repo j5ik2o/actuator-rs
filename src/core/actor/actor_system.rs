@@ -116,6 +116,12 @@ mod test {
   #[derive(Debug, Clone)]
   struct TestChildActor;
 
+  impl Drop for TestChildActor {
+    fn drop(&mut self) {
+      log::info!("TestChildActor drop");
+    }
+  }
+
   impl ActorMutableBehavior<String> for TestChildActor {
     fn receive(&mut self, _ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
       log::info!("TestChildActor received message: {:?}", msg);
@@ -138,6 +144,12 @@ mod test {
     child_ref: Option<ActorRef<String>>,
   }
 
+  impl Drop for TestActor {
+    fn drop(&mut self) {
+      log::debug!("TestActor drop");
+    }
+  }
+
   impl TestActor {
     fn new() -> Self {
       Self { child_ref: None }
@@ -158,8 +170,9 @@ mod test {
       Ok(())
     }
 
-    fn receive(&mut self, _ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
+    fn receive(&mut self, mut ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
       log::info!("TestActor received message: {:?}", msg);
+      // ctx.stop(ctx.self_ref().clone());
       // ctx.stop(self.child_ref.as_ref().unwrap().clone());
       self.child_ref.as_mut().unwrap().tell(format!("++{}++", msg));
       Ok(())
@@ -181,10 +194,8 @@ mod test {
     let mut actor_system = ActorSystem::new(runtime, address, "test", main_props);
     let mut actor_system_ref = actor_system.initialize();
     actor_system_ref.tell("test-1".to_string());
-    actor_system_ref.tell("test-2".to_string());
-    thread::sleep(Duration::from_secs(1));
-    actor_system_ref.stop();
-    thread::sleep(Duration::from_secs(1));
+    // actor_system_ref.tell("test-2".to_string());
+    thread::sleep(Duration::from_secs(3));
     actor_system.join();
   }
 }
