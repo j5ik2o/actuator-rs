@@ -97,10 +97,8 @@ impl<Msg: Message> ActorSystem<Msg> {
   }
 
   pub fn join(&self) {
-    loop {
-      let inner = self.inner.read().unwrap();
-      inner.dispatcher.as_ref().unwrap().join();
-    }
+    let inner = self.inner.read().unwrap();
+    inner.dispatcher.as_ref().unwrap().join();
   }
 }
 
@@ -196,9 +194,7 @@ mod test {
     let mut actor_system = ActorSystem::new(runtime, address, "test", main_props);
     let mut actor_system_ref = actor_system.initialize();
     actor_system_ref.tell("test-1".to_string());
-    // actor_system_ref.tell("test-2".to_string());
-    thread::sleep(Duration::from_secs(3));
-    actor_system_ref.stop();
+    actor_system_ref.tell("test-2".to_string());
     actor_system.join();
   }
 }

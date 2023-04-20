@@ -52,19 +52,19 @@ impl<Msg: Message> LocalActorRef<Msg> {
     self.actor_cell.send_system_message(self_ref, message);
   }
 
-  pub fn start(&mut self, self_ref: ActorRef<Msg>) {
+  pub(crate) fn start(&mut self, self_ref: ActorRef<Msg>) {
     self.actor_cell.start(self_ref);
   }
 
-  pub fn suspend(&mut self, self_ref: ActorRef<Msg>) {
+  pub(crate) fn suspend(&mut self, self_ref: ActorRef<Msg>) {
     self.actor_cell.suspend(self_ref);
   }
 
-  pub fn resume(&mut self, self_ref: ActorRef<Msg>, caused_by_failure: Option<ActorError>) {
+  pub(crate) fn resume(&mut self, self_ref: ActorRef<Msg>, caused_by_failure: Option<ActorError>) {
     self.actor_cell.resume(self_ref, caused_by_failure)
   }
 
-  pub fn stop(&mut self, self_ref: ActorRef<Msg>) {
+  pub(crate) fn stop(&mut self, self_ref: ActorRef<Msg>) {
     self.actor_cell.stop(self_ref);
   }
 }

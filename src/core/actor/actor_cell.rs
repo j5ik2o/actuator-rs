@@ -53,6 +53,11 @@ pub fn split_name_and_uid(name: &str) -> (&str, u32) {
   }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum AutoReceivedMessage {
+  PoisonPill,
+}
+
 #[derive(Debug, Clone)]
 struct ActorCellInner<Msg: Message> {
   path: ActorPath,
@@ -322,7 +327,7 @@ impl<Msg: Message> ActorCell<Msg> {
     result
   }
 
-  pub fn start(&mut self, self_ref: ActorRef<Msg>) {
+  pub(crate) fn start(&mut self, self_ref: ActorRef<Msg>) {
     log::info!("start: start: self_ref = {}", self_ref.path());
     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell not initialized");
@@ -354,7 +359,7 @@ impl<Msg: Message> ActorCell<Msg> {
     )
   }
 
-  pub fn stop(&mut self, self_ref: ActorRef<Msg>) {
+  pub(crate) fn stop(&mut self, self_ref: ActorRef<Msg>) {
     log::info!("stop: start: self_ref = {}", self_ref.path());
     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell not initialized");
@@ -371,7 +376,7 @@ impl<Msg: Message> ActorCell<Msg> {
     log::info!("stop: finished: self_ref = {}", self_ref.path());
   }
 
-  pub fn suspend(&mut self, self_ref: ActorRef<Msg>) {
+  pub(crate) fn suspend(&mut self, self_ref: ActorRef<Msg>) {
     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) && self.exists_actor() {
       panic!("ActorCell not initialized");
     }
@@ -496,9 +501,19 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
     let ctx = ActorContext::new(self.clone(), self_ref.clone());
     let mut inner = mutex_lock_with_log!(self.inner, "invoke").clone();
     let mut actor = inner.actor.as_mut().unwrap().borrow_mut();
-    actor
-      .around_receive(ctx, msg.clone().typed_message::<Msg>().unwrap())
-      .unwrap();
+
+    let auto_received_message = msg.clone().typed_message::<AutoReceivedMessage>();
+    match auto_received_message {
+      Ok(msg) => {
+        // TODO: PoisonPill
+      }
+      Err(_) => {
+        actor
+          .around_receive(ctx, msg.clone().typed_message::<Msg>().unwrap())
+          .unwrap();
+      }
+    }
+
     {
       let inner = mutex_lock_with_log!(self.inner, "invoke");
       let mut cm = inner.current_message.borrow_mut();

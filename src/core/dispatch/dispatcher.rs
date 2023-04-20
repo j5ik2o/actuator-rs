@@ -66,9 +66,7 @@ impl Dispatcher {
 
       match task_opt {
         Some(task) => {
-          log::debug!("runtime.block_on(task): start");
           let _ = runtime.block_on(task);
-          log::debug!("runtime.block_on(task): finished");
         }
         None => break,
       }
