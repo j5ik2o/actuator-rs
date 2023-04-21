@@ -41,7 +41,7 @@ pub struct ActorSystemInner<Msg: Message> {
   dispatcher: Option<Dispatcher>,
   mailboxes: Option<Arc<Mutex<Mailboxes>>>,
   children: ChildrenRefs,
-  main_props: Rc<dyn Props<Msg>>,
+  main_props: Option<Rc<dyn Props<Msg>>>,
 }
 
 pub struct ActorSystem<Msg: Message> {
@@ -61,7 +61,7 @@ impl<Msg: Message> ActorSystem<Msg> {
         dispatcher: None,
         mailboxes: None,
         children: ChildrenRefs::new(),
-        main_props,
+        main_props: Some(main_props),
       })),
     }
   }
@@ -76,7 +76,17 @@ impl<Msg: Message> ActorSystem<Msg> {
     }
     {
       let mut inner = self.inner.write().unwrap();
-      inner.root_ref = None;
+      let dead_letters = inner.dead_letters.take();
+      drop(dead_letters);
+      let mailboxes = inner.mailboxes.take();
+      drop(mailboxes);
+      inner.children = ChildrenRefs::new();
+      let root_ref = inner.root_ref.take();
+      drop(root_ref);
+      let sc = Rc::strong_count(&inner.main_props.as_ref().unwrap());
+      log::info!("main_props: strong_count: {}", sc);
+      let main_props = inner.main_props.take();
+      drop(main_props);
     }
   }
 
@@ -96,7 +106,12 @@ impl<Msg: Message> ActorSystem<Msg> {
     inner.dead_letters = Some(dead_letters_ref.clone());
     inner.mailboxes = Some(mailboxes.clone());
 
-    let mut main_actor_cell = ActorCell::new(dispatcher.clone(), main_path.clone(), inner.main_props.clone(), None);
+    let mut main_actor_cell = ActorCell::new(
+      dispatcher.clone(),
+      main_path.clone(),
+      inner.main_props.as_ref().unwrap().clone(),
+      None,
+    );
     let main_actor_ref = ActorRef::of_local(main_actor_cell.clone(), main_path.clone());
     let dead_letter_mailbox = mailboxes.lock().unwrap().dead_letter_mailbox();
 
@@ -122,7 +137,7 @@ mod test {
   use crate::core::actor::actor_context::{ActorContext, ActorContextBehavior};
   use crate::core::actor::actor_ref::ActorRefBehavior;
   use crate::core::actor::props::FunctionProps;
-  use crate::core::actor::{ActorMutableBehavior, ActorResult};
+  use crate::core::actor::{actor_system, ActorMutableBehavior, ActorResult};
   use std::cell::RefCell;
   use std::{env, thread};
   use tokio::runtime;
@@ -203,15 +218,16 @@ mod test {
     init_logger();
     let runtime = runtime::Builder::new_multi_thread().enable_all().build().unwrap();
     let address = Address::new("tcp", "test");
-    let main_actor = || Rc::new(RefCell::new(TestActor::new()));
-    let main_props = Rc::new(FunctionProps::new(move || main_actor()));
-    let mut actor_system = ActorSystem::new(runtime, address, "test", main_props);
-    let mut actor_system_ref = actor_system.initialize();
-    actor_system_ref.tell("test-1".to_string());
+    let main_props = Rc::new(FunctionProps::new(move || Rc::new(RefCell::new(TestActor::new()))));
 
-    // thread::sleep(Duration::from_secs(5));
+    let mut actor_system = ActorSystem::new(runtime, address, "test", main_props.clone());
+
+    let mut actor_system_ref = actor_system.initialize();
+
+    actor_system_ref.tell("test-1".to_string());
 
     actor_system.when_terminate();
     actor_system.join();
+    drop(main_props);
   }
 }

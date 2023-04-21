@@ -562,8 +562,13 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
         }
         {
           let mut inner = mutex_lock_with_log!(self.inner, "system_invoke");
+          inner.children = ChildrenRefs::new();
+          let ms = inner.mailbox_sender.take();
+          drop(ms);
+          let p = inner.parent_ref.take();
+          drop(p);
           let a = inner.actor.take().unwrap();
-          log::info!("drop actor");
+          drop(a);
         }
       }
       _ => {}
