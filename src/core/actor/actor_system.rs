@@ -137,9 +137,9 @@ mod test {
   use crate::core::actor::actor_context::{ActorContext, ActorContextBehavior};
   use crate::core::actor::actor_ref::ActorRefBehavior;
   use crate::core::actor::props::FunctionProps;
-  use crate::core::actor::{actor_system, ActorMutableBehavior, ActorResult};
+  use crate::core::actor::{ActorMutableBehavior, ActorResult};
   use std::cell::RefCell;
-  use std::{env, thread};
+  use std::env;
   use tokio::runtime;
 
   #[derive(Debug, Clone)]
