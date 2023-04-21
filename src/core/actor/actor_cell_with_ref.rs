@@ -69,7 +69,6 @@ impl<Msg: Message> ActorCellWithRef<Msg> {
   }
 
   pub fn actor_with_name_of<U: Message>(&mut self, props: Rc<dyn Props<U>>, name: &str) -> ActorRef<U> {
-    log::debug!("actor_with_name_of: {}", name);
     self.actor_cell.actor_with_name_of(self.actor_ref.clone(), props, name)
   }
 }

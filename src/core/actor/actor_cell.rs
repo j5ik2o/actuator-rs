@@ -325,20 +325,15 @@ impl<Msg: Message> ActorCell<Msg> {
     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell not initialized");
     }
-    log::debug!("actor_with_name_of: start: name = {}", name);
     let mut children = {
-      log::debug!("actor_with_name_of: self.inner.lock().unwrap(): start {}", name);
       let inner = mutex_lock_with_log!(self.inner, "actor_with_name_of");
-      log::debug!("actor_with_name_of: self.inner.lock().unwrap(): finished {}", name);
       inner.children.clone()
     };
     let result = children.actor_with_name_of(self.clone().to_any(true), self_ref.to_any(true), props, name);
-    log::debug!("actor_with_name_of: finished: name = {}", name);
     result
   }
 
   pub(crate) fn start(&mut self, self_ref: ActorRef<Msg>) {
-    log::info!("start: start: self_ref = {}", self_ref.path());
     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell not initialized");
     }
@@ -351,7 +346,6 @@ impl<Msg: Message> ActorCell<Msg> {
     };
     let ctx = ActorCellWithRef::new(self.clone(), self_ref.clone());
     dispatcher.attach(ctx);
-    log::info!("start: finished: self_ref = {}", self_ref.path());
   }
 
   fn exists_actor(&self) -> bool {
@@ -359,31 +353,16 @@ impl<Msg: Message> ActorCell<Msg> {
     inner.actor.is_some()
   }
 
-  fn info(&self) -> String {
-    let inner = mutex_lock_with_log!(self.inner, "info");
-    format!(
-      "path = {}, parent_ref = {}, actor = {:?}",
-      inner.path,
-      inner.parent_ref.as_ref().unwrap().path(),
-      inner.actor
-    )
-  }
-
   pub(crate) fn stop(&mut self, self_ref: ActorRef<Msg>) {
-    log::info!("stop: start: self_ref = {}", self_ref.path());
     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell not initialized");
     }
-    // if !self.exists_actor() {
-    //   panic!("ActorCell not exists actor: info = {}", self.info());
-    // }
     let mut dispatcher = {
       let inner = mutex_lock_with_log!(self.inner, "stop");
       inner.dispatcher.clone()
     };
     let ctx = ActorCellWithRef::new(self.clone(), self_ref.clone());
     dispatcher.system_dispatch(ctx, &mut SystemMessageEntry::new(SystemMessage::of_terminate()));
-    log::info!("stop: finished: self_ref = {}", self_ref.path());
   }
 
   pub(crate) fn suspend(&mut self, self_ref: ActorRef<Msg>) {
@@ -516,11 +495,6 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
     match auto_received_message {
       Ok(msg) => match msg.take::<AutoReceivedMessage>() {
         Ok(AutoReceivedMessage::Terminated(ar)) => {
-          log::info!(
-            "invoke: Terminated: self_ref = {},  path = {}",
-            self_ref.path().name().to_string(),
-            ar.path().to_string()
-          );
           let is_empty = {
             let mut inner = mutex_lock_with_log!(self.inner, "invoke");
             inner.children.un_reserve_child(ar.path().name());
@@ -547,17 +521,12 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
   }
 
   fn system_invoke(&mut self, self_ref: ActorRef<Msg>, msg: &SystemMessage) {
-    log::info!("system_invoke: start: self_ref = {}, {}", self_ref.path(), msg.name());
     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell not initialized");
     }
     match msg {
       SystemMessage::Create { failure: _ } => {
         let mut actor_rc = {
-          log::debug!(
-            "system_invoke: start: self_ref = {}, inner.actor = Some(actor_rc.clone())",
-            self_ref.path(),
-          );
           let mut inner = mutex_lock_with_log!(self.inner, "system_invoke");
           inner.actor = Some(inner.props.new_actor());
           inner.actor.clone()
@@ -570,7 +539,6 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
         let is_empty;
         {
           let inner = mutex_lock_with_log!(self.inner, "system_invoke");
-          log::debug!("system_invoke: path = {}", self_ref.path());
           is_empty = inner.children.is_empty();
           if inner.children.non_empty() {
             inner.children.stop_all_children();
@@ -591,15 +559,15 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
         }
         if is_empty {
           self.tell_terminated_to_parent(self_ref);
-          {
-            let mut inner = mutex_lock_with_log!(self.inner, "system_invoke");
-            inner.actor = None;
-          }
+        }
+        {
+          let mut inner = mutex_lock_with_log!(self.inner, "system_invoke");
+          let a = inner.actor.take().unwrap();
+          log::info!("drop actor");
         }
       }
       _ => {}
     }
-    log::info!("system_invoke: finished");
   }
 }
 
@@ -607,9 +575,7 @@ impl<Msg: Message> ActorCell<Msg> {
   pub fn when_terminate(&self) {
     let mut rx_g = self.terminated_rx.lock().unwrap();
     let rx = rx_g.take().unwrap();
-    log::info!("waiting for terminated...");
     rx.blocking_recv().unwrap();
-    log::info!("terminated");
   }
 
   fn tell_terminated_to_parent(&mut self, self_ref: ActorRef<Msg>) {
@@ -620,12 +586,10 @@ impl<Msg: Message> ActorCell<Msg> {
     if let Some(parent_ref) = &mut parent_ref_opt {
       let terminated = AutoReceivedMessage::Terminated(self_ref.clone().to_any(false));
       let msg = AnyMessage::new(terminated);
-      log::info!("parent_ref.tell_any(msg) = {:?}", msg);
       parent_ref.tell_any(msg);
     } else {
       let mut tx_g = self.tx.lock().unwrap();
       let terminated_tx = tx_g.take().unwrap();
-      log::info!("terminated_tx.send(()).unwrap()");
       terminated_tx.send(()).unwrap()
     }
   }

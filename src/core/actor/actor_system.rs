@@ -67,11 +67,17 @@ impl<Msg: Message> ActorSystem<Msg> {
   }
 
   pub fn when_terminate(&self) {
-    let inner = self.inner.write().unwrap();
-    let root_ref = inner.root_ref.as_ref().unwrap();
-    let actor_cell_opt = root_ref.actor_cell();
-    let actor_cell = actor_cell_opt.as_ref().unwrap();
-    actor_cell.when_terminate();
+    {
+      let inner = self.inner.write().unwrap();
+      let root_ref = inner.root_ref.as_ref().unwrap();
+      let actor_cell_opt = root_ref.actor_cell();
+      let actor_cell = actor_cell_opt.as_ref().unwrap();
+      actor_cell.when_terminate();
+    }
+    {
+      let mut inner = self.inner.write().unwrap();
+      inner.root_ref = None;
+    }
   }
 
   pub fn initialize(&mut self) -> ActorRef<Msg> {
@@ -154,7 +160,7 @@ mod test {
 
   impl Drop for TestActor {
     fn drop(&mut self) {
-      log::debug!("TestActor drop");
+      log::info!("TestActor drop");
     }
   }
 
