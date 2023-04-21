@@ -585,7 +585,9 @@ impl<Msg: Message> ActorCell<Msg> {
     let rx = rx_g.take().unwrap();
     runner.block_on(async move {
       match rx.await {
-        Ok(()) => {}
+        Ok(()) => {
+          log::info!("when_terminate: terminated");
+        }
         Err(error) => {
           log::error!("when_terminate: error = {:?}", error);
         }
