@@ -181,18 +181,19 @@ impl<Msg: Message> ActorCell<Msg> {
       );
       self.initialized.store(true, std::sync::atomic::Ordering::Relaxed);
     }
-    // if send_supervise {
-    //   let mut parent_ref = {
-    //     let inner = mutex_lock_with_log!(self.inner, "initialize");
-    //     inner.parent_ref.clone()
-    //   };
-    //   if let Some(parent_ref) = &mut parent_ref {
-    //     parent_ref.send_system_message(&mut SystemMessageEntry::new(SystemMessage::of_supervise(
-    //       self_ref.to_any(true),
-    //       true,
-    //     )));
-    //   }
-    // }
+    if send_supervise {
+      let self_ref_any = self_ref.to_any(false);
+      let mut parent_ref = {
+        let inner = mutex_lock_with_log!(self.inner, "initialize");
+        inner.parent_ref.clone()
+      };
+      if let Some(parent_ref) = &mut parent_ref {
+        parent_ref.send_system_message(&mut SystemMessageEntry::new(SystemMessage::of_supervise(
+          self_ref_any,
+          true,
+        )));
+      }
+    }
   }
 
   pub fn dead_letter_mailbox(&self) -> DeadLetterMailbox {
@@ -546,7 +547,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
   }
 
   fn system_invoke(&mut self, self_ref: ActorRef<Msg>, msg: &SystemMessage) {
-    log::info!("system_invoke: start: self_ref = {}, {:?}", self_ref.path(), msg);
+    log::info!("system_invoke: start: self_ref = {}, {}", self_ref.path(), msg.name());
     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell not initialized");
     }
@@ -596,9 +597,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
           }
         }
       }
-      msg => {
-        log::info!("system_invoke: other msg = {:?}", msg);
-      }
+      _ => {}
     }
     log::info!("system_invoke: finished");
   }

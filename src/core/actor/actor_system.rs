@@ -206,6 +206,6 @@ mod test {
     // thread::sleep(Duration::from_secs(5));
 
     actor_system.when_terminate();
-    // actor_system.join();
+    actor_system.join();
   }
 }

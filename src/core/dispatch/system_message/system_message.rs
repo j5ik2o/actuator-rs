@@ -93,6 +93,21 @@ impl SystemMessage {
     }
   }
 
+  pub fn name(&self) -> String {
+    match self {
+      SystemMessage::Create { .. } => "Create".to_string(),
+      SystemMessage::Recreate { .. } => "Recreate".to_string(),
+      SystemMessage::Suspend => "Suspend".to_string(),
+      SystemMessage::Resume { .. } => "Resume".to_string(),
+      SystemMessage::Terminate => "Terminate".to_string(),
+      SystemMessage::Supervise { .. } => "Supervise".to_string(),
+      SystemMessage::Watch => "Watch".to_string(),
+      SystemMessage::NoMessage => "NoMessage".to_string(),
+      SystemMessage::Failed { .. } => "Failed".to_string(),
+      SystemMessage::DeathWatchNotification { .. } => "DeathWatchNotification".to_string(),
+    }
+  }
+
   pub fn is_no_message(&self) -> bool {
     match self {
       SystemMessage::NoMessage { .. } => true,
