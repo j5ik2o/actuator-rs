@@ -66,6 +66,14 @@ impl<Msg: Message> ActorSystem<Msg> {
     }
   }
 
+  pub fn when_terminate(&self) {
+    let inner = self.inner.write().unwrap();
+    let root_ref = inner.root_ref.as_ref().unwrap();
+    let actor_cell_opt = root_ref.actor_cell();
+    let actor_cell = actor_cell_opt.as_ref().unwrap();
+    actor_cell.when_terminate();
+  }
+
   pub fn initialize(&mut self) -> ActorRef<Msg> {
     let mut inner = self.inner.write().unwrap();
     let main_path = ActorPath::of_root_with_name(inner.address.clone(), &inner.name);
@@ -195,8 +203,9 @@ mod test {
     let mut actor_system_ref = actor_system.initialize();
     actor_system_ref.tell("test-1".to_string());
 
-    thread::sleep(Duration::from_secs(5));
+    // thread::sleep(Duration::from_secs(5));
 
-    actor_system.join();
+    actor_system.when_terminate();
+    // actor_system.join();
   }
 }

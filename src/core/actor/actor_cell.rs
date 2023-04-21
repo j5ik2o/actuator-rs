@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::fmt::Debug;
 use std::rc::Rc;
 use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use rand::{thread_rng, RngCore};
 
@@ -28,7 +28,7 @@ use crate::core::dispatch::system_message::SystemMessageQueueWriterBehavior;
 use crate::infrastructure::logging_mutex::LoggingMutex;
 
 use crate::mutex_lock_with_log;
-
+use tokio::sync::oneshot;
 pub const UNDEFINED_UID: u32 = 0;
 
 pub fn new_uid() -> u32 {
@@ -87,6 +87,8 @@ pub struct ActorCell<Msg: Message> {
   initialized: Arc<AtomicBool>,
   inner: Arc<LoggingMutex<ActorCellInner<Msg>>>,
   path: ActorPath,
+  terminated_rx: Arc<Mutex<Option<oneshot::Receiver<()>>>>,
+  tx: Arc<Mutex<Option<oneshot::Sender<()>>>>,
 }
 
 // impl<Msg: Message> Drop for ActorCell<Msg> {
@@ -131,7 +133,10 @@ impl<Msg: Message> ActorCell<Msg> {
     props: Rc<dyn Props<Msg>>,
     parent_ref: Option<AnyActorRef>,
   ) -> Self {
+    let (tx, rx) = oneshot::channel();
     ActorCell {
+      terminated_rx: Arc::new(Mutex::new(Some(rx))),
+      tx: Arc::new(Mutex::new(Some(tx))),
       path: path.clone(),
       initialized: Arc::new(AtomicBool::new(false)),
       inner: Arc::new(LoggingMutex::new(
@@ -157,24 +162,25 @@ impl<Msg: Message> ActorCell<Msg> {
     self_ref: ActorRef<Msg>,
     mailbox_type: MailboxType,
     dead_letter_mailbox: DeadLetterMailbox,
-    _send_supervise: bool,
+    send_supervise: bool,
   ) {
     if self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell already initialized");
     }
-    let mut inner = mutex_lock_with_log!(self.inner, "initialize");
-    let mailbox = inner
-      .dispatcher
-      .create_mailbox(Some(self_ref.clone()), mailbox_type.clone());
-    inner.mailbox = Some(mailbox.clone());
-    inner.mailbox_sender = Some(mailbox.sender());
-    inner.dead_letter_mailbox = Some(dead_letter_mailbox);
-    inner.mailbox.as_mut().unwrap().sender().system_enqueue(
-      self_ref.clone(),
-      &mut SystemMessageEntry::new(SystemMessage::of_create()),
-    );
-    self.initialized.store(true, std::sync::atomic::Ordering::Relaxed);
-
+    {
+      let mut inner = mutex_lock_with_log!(self.inner, "initialize");
+      let mailbox = inner
+        .dispatcher
+        .create_mailbox(Some(self_ref.clone()), mailbox_type.clone());
+      inner.mailbox = Some(mailbox.clone());
+      inner.mailbox_sender = Some(mailbox.sender());
+      inner.dead_letter_mailbox = Some(dead_letter_mailbox);
+      inner.mailbox.as_mut().unwrap().sender().system_enqueue(
+        self_ref.clone(),
+        &mut SystemMessageEntry::new(SystemMessage::of_create()),
+      );
+      self.initialized.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
     // if send_supervise {
     //   let mut parent_ref = {
     //     let inner = mutex_lock_with_log!(self.inner, "initialize");
@@ -182,7 +188,7 @@ impl<Msg: Message> ActorCell<Msg> {
     //   };
     //   if let Some(parent_ref) = &mut parent_ref {
     //     parent_ref.send_system_message(&mut SystemMessageEntry::new(SystemMessage::of_supervise(
-    //       self_ref.to_any(),
+    //       self_ref.to_any(true),
     //       true,
     //     )));
     //   }
@@ -221,6 +227,8 @@ impl<Msg: Message> ActorCell<Msg> {
       |e: Rc<RefCell<dyn ActorMutableBehavior<Msg>>>| Rc::new(RefCell::new(AnyMessageActorWrapper::new(e.clone())));
     let inner = mutex_lock_with_log!(self.inner, "to_any");
     ActorCell {
+      terminated_rx: self.terminated_rx.clone(),
+      tx: self.tx.clone(),
       path: inner.path.clone(),
       initialized: self.initialized.clone(),
       inner: Arc::new(LoggingMutex::new(
@@ -434,6 +442,8 @@ impl ActorCell<AnyMessage> {
     };
     let inner = mutex_lock_with_log!(self.inner, "to_typed");
     ActorCell {
+      terminated_rx: self.terminated_rx,
+      tx: self.tx,
       path: inner.path.clone(),
       initialized: self.initialized.clone(),
       inner: Arc::new(LoggingMutex::new(
@@ -472,10 +482,8 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
   }
 
   fn mailbox_sender(&self) -> MailboxSender<Msg> {
-    // log::debug!("mailbox_sender: start");
     let inner = mutex_lock_with_log!(self.inner, "mailbox_sender");
     let result = inner.mailbox_sender.as_ref().unwrap().clone();
-    // log::debug!("mailbox_sender: finished");
     result
   }
 
@@ -588,13 +596,23 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
           }
         }
       }
-      _ => {}
+      msg => {
+        log::info!("system_invoke: other msg = {:?}", msg);
+      }
     }
     log::info!("system_invoke: finished");
   }
 }
 
 impl<Msg: Message> ActorCell<Msg> {
+  pub fn when_terminate(&self) {
+    let mut rx_g = self.terminated_rx.lock().unwrap();
+    let rx = rx_g.take().unwrap();
+    log::info!("waiting for terminated...");
+    rx.blocking_recv().unwrap();
+    log::info!("terminated");
+  }
+
   fn tell_terminated_to_parent(&mut self, self_ref: ActorRef<Msg>) {
     let mut parent_ref_opt = {
       let inner = mutex_lock_with_log!(self.inner, "system_invoke");
@@ -606,7 +624,10 @@ impl<Msg: Message> ActorCell<Msg> {
       log::info!("parent_ref.tell_any(msg) = {:?}", msg);
       parent_ref.tell_any(msg);
     } else {
-      // TODO: すべての子アクターが停止したことを通知をする
+      let mut tx_g = self.tx.lock().unwrap();
+      let terminated_tx = tx_g.take().unwrap();
+      log::info!("terminated_tx.send(()).unwrap()");
+      terminated_tx.send(()).unwrap()
     }
   }
 }
