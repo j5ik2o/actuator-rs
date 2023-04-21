@@ -12,6 +12,7 @@ pub mod props;
 pub mod scheduler;
 
 use crate::core::actor::actor_context::ActorContext;
+use crate::core::actor::actor_ref::ActorRef;
 use crate::core::dispatch::any_message::AnyMessage;
 use crate::core::dispatch::message::Message;
 use std::cell::RefCell;
@@ -40,6 +41,7 @@ pub trait ActorMutableBehavior<Msg: Message>: Debug {
   }
 
   fn pre_restart(&mut self, _ctx: ActorContext<Msg>, _reason: ActorError, _msg: Option<Msg>) -> ActorResult<()> {
+    log::info!("default pre_start");
     Ok(())
   }
 
@@ -48,6 +50,7 @@ pub trait ActorMutableBehavior<Msg: Message>: Debug {
   }
 
   fn pre_start(&mut self, _ctx: ActorContext<Msg>) -> ActorResult<()> {
+    log::info!("default pre_start");
     Ok(())
   }
 
@@ -56,6 +59,7 @@ pub trait ActorMutableBehavior<Msg: Message>: Debug {
   }
 
   fn pre_suspend(&mut self, _ctx: ActorContext<Msg>) -> ActorResult<()> {
+    log::info!("default pre_suspend");
     Ok(())
   }
 
@@ -64,6 +68,7 @@ pub trait ActorMutableBehavior<Msg: Message>: Debug {
   }
 
   fn post_resume(&mut self, _ctx: ActorContext<Msg>, _caused_by_failure: Option<ActorError>) -> ActorResult<()> {
+    log::info!("default post_resume");
     Ok(())
   }
 
@@ -72,6 +77,16 @@ pub trait ActorMutableBehavior<Msg: Message>: Debug {
   }
 
   fn post_stop(&mut self, _ctx: ActorContext<Msg>) -> ActorResult<()> {
+    log::info!("default post_stop");
+    Ok(())
+  }
+
+  fn around_child_terminated(&mut self, ctx: ActorContext<Msg>, child: ActorRef<AnyMessage>) -> ActorResult<()> {
+    self.child_terminated(ctx, child)
+  }
+
+  fn child_terminated(&mut self, ctx: ActorContext<Msg>, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
+    log::info!("default child_terminated");
     Ok(())
   }
 }
@@ -83,6 +98,10 @@ pub struct MockActorMutable<Msg: Message> {
 
 impl<Msg: Message> ActorMutableBehavior<Msg> for MockActorMutable<Msg> {
   fn receive(&mut self, _ctx: ActorContext<Msg>, _msg: Msg) -> ActorResult<()> {
+    Ok(())
+  }
+
+  fn child_terminated(&mut self, ctx: ActorContext<Msg>, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
     Ok(())
   }
 }
@@ -103,6 +122,13 @@ impl<Msg: Message> ActorMutableBehavior<AnyMessage> for AnyMessageActorWrapper<M
     let typed_msg = msg.take::<Msg>().unwrap();
     let mut actor = self.actor.borrow_mut();
     actor.around_receive(ctx.to_typed(true), typed_msg)
+  }
+
+  fn child_terminated(&mut self, ctx: ActorContext<AnyMessage>, child: ActorRef<AnyMessage>) -> ActorResult<()> {
+    let mut actor = self.actor.borrow_mut();
+    log::info!("child_terminated: {:?}", ctx.to_typed::<Msg>(false));
+    //    actor.around_child_terminated(ctx.to_typed(false), child)
+    Ok(())
   }
 }
 
@@ -148,5 +174,10 @@ impl<Msg: Message> ActorMutableBehavior<AnyMessage> for AnyMessageActorFunctionW
     let typed_msg = msg.take::<Msg>().unwrap();
     let mut actor = self.actor.as_mut().unwrap().borrow_mut();
     actor.around_receive(ctx.to_typed(true), typed_msg)
+  }
+
+  fn child_terminated(&mut self, ctx: ActorContext<AnyMessage>, child: ActorRef<AnyMessage>) -> ActorResult<()> {
+    let mut actor = self.actor.as_mut().unwrap().borrow_mut();
+    actor.around_child_terminated(ctx.to_typed(true), child)
   }
 }

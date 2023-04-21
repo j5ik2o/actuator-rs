@@ -497,6 +497,9 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
     match auto_received_message {
       Ok(msg) => match msg.take::<AutoReceivedMessage>() {
         Ok(AutoReceivedMessage::Terminated(ar)) => {
+          log::info!("start - around_child_terminated");
+          actor.around_child_terminated(ctx, ar.clone()).unwrap();
+          log::info!("finished - around_child_terminated");
           let is_empty = {
             let mut inner = mutex_lock_with_log!(self.inner, "invoke");
             inner.children.un_reserve_child(ar.path().name());
@@ -509,9 +512,8 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
         _ => {}
       },
       Err(_) => {
-        actor
-          .around_receive(ctx, msg.clone().typed_message::<Msg>().unwrap())
-          .unwrap();
+        let msg = msg.clone().typed_message::<Msg>().unwrap();
+        actor.around_receive(ctx, msg).unwrap();
       }
     }
 

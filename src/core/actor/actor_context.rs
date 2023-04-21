@@ -7,6 +7,7 @@ use crate::core::dispatch::message::Message;
 use std::rc::Rc;
 use std::time::Duration;
 
+#[derive(Debug, Clone)]
 pub struct ActorContext<Msg: Message> {
   _phantom: std::marker::PhantomData<Msg>,
   actor_cell: ActorCellWithRef<Msg>,

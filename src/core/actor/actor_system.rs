@@ -156,12 +156,17 @@ mod test {
     }
 
     fn pre_start(&mut self, _ctx: ActorContext<String>) -> ActorResult<()> {
-      log::info!("TestChildActor start");
+      log::info!("TestChildActor pre_start");
       Ok(())
     }
 
     fn post_stop(&mut self, _ctx: ActorContext<String>) -> ActorResult<()> {
-      log::info!("TestChildActor stopped");
+      log::info!("TestChildActor post_stop");
+      Ok(())
+    }
+
+    fn child_terminated(&mut self, ctx: ActorContext<String>, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
+      log::info!("TestChildActor child_terminated");
       Ok(())
     }
   }
@@ -189,7 +194,7 @@ mod test {
 
   impl ActorMutableBehavior<String> for TestActor {
     fn pre_start(&mut self, mut ctx: ActorContext<String>) -> ActorResult<()> {
-      log::info!("TestActor start");
+      log::info!("TestActor pre_start");
       let props = Rc::new(FunctionProps::<String>::new(|| Rc::new(RefCell::new(TestChildActor))));
       let child_ref = ctx.spawn(props, "child");
       self.child_ref = Some(child_ref);
@@ -197,7 +202,12 @@ mod test {
     }
 
     fn post_stop(&mut self, _ctx: ActorContext<String>) -> ActorResult<()> {
-      log::info!("TestActor stopped");
+      log::info!("TestActor post_stop");
+      Ok(())
+    }
+
+    fn child_terminated(&mut self, ctx: ActorContext<String>, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
+      log::info!("TestActor child_terminated");
       Ok(())
     }
 
