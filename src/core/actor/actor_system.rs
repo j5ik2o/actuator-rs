@@ -83,8 +83,6 @@ impl<Msg: Message> ActorSystem<Msg> {
       inner.children = ChildrenRefs::new();
       let root_ref = inner.root_ref.take();
       drop(root_ref);
-      let sc = Rc::strong_count(&inner.main_props.as_ref().unwrap());
-      log::info!("main_props: strong_count: {}", sc);
       let main_props = inner.main_props.take();
       drop(main_props);
     }
@@ -170,6 +168,7 @@ mod test {
 
   #[derive(Debug, Clone)]
   struct TestActor {
+    counter: u32,
     child_ref: Option<ActorRef<String>>,
   }
 
@@ -181,7 +180,10 @@ mod test {
 
   impl TestActor {
     fn new() -> Self {
-      Self { child_ref: None }
+      Self {
+        counter: 0,
+        child_ref: None,
+      }
     }
   }
 
@@ -201,8 +203,13 @@ mod test {
 
     fn receive(&mut self, mut ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
       log::info!("TestActor received message: {:?}", msg);
+      self.counter += 1;
+
+      if self.counter == 2 {
+        ctx.stop(ctx.self_ref().clone());
+      }
       // ctx.stop(self.child_ref.as_ref().unwrap().clone());
-      ctx.stop(ctx.self_ref().clone());
+      // ctx.stop(ctx.self_ref().clone());
       // self.child_ref.as_mut().unwrap().tell(format!("++{}++", msg));
       Ok(())
     }
@@ -225,9 +232,9 @@ mod test {
     let mut actor_system_ref = actor_system.initialize();
 
     actor_system_ref.tell("test-1".to_string());
+    actor_system_ref.tell("test-2".to_string());
 
     actor_system.when_terminate();
     actor_system.join();
-    drop(main_props);
   }
 }

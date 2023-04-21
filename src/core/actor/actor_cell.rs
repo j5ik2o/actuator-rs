@@ -3,8 +3,10 @@ use std::fmt::Debug;
 use std::rc::Rc;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use rand::{thread_rng, RngCore};
+use tokio::runtime::Runtime;
 
 use crate::core::actor::actor_cell_with_ref::ActorCellWithRef;
 use crate::core::actor::actor_context::ActorContext;
@@ -29,6 +31,8 @@ use crate::infrastructure::logging_mutex::LoggingMutex;
 
 use crate::mutex_lock_with_log;
 use tokio::sync::oneshot;
+use tokio::time::timeout;
+
 pub const UNDEFINED_UID: u32 = 0;
 
 pub fn new_uid() -> u32 {
@@ -562,13 +566,11 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
         }
         {
           let mut inner = mutex_lock_with_log!(self.inner, "system_invoke");
-          inner.children = ChildrenRefs::new();
-          let ms = inner.mailbox_sender.take();
-          drop(ms);
-          let p = inner.parent_ref.take();
-          drop(p);
-          let a = inner.actor.take().unwrap();
-          drop(a);
+          inner.children.clear();
+          let parent_ref = inner.parent_ref.take();
+          drop(parent_ref);
+          let actor = inner.actor.take().unwrap();
+          drop(actor);
         }
       }
       _ => {}
@@ -578,9 +580,17 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
 
 impl<Msg: Message> ActorCell<Msg> {
   pub fn when_terminate(&self) {
+    let runner = Runtime::new().unwrap();
     let mut rx_g = self.terminated_rx.lock().unwrap();
     let rx = rx_g.take().unwrap();
-    rx.blocking_recv().unwrap();
+    runner.block_on(async move {
+      match rx.await {
+        Ok(()) => {}
+        Err(error) => {
+          log::error!("when_terminate: error = {:?}", error);
+        }
+      }
+    });
   }
 
   fn tell_terminated_to_parent(&mut self, self_ref: ActorRef<Msg>) {
