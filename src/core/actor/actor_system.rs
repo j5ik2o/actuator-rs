@@ -204,13 +204,13 @@ mod test {
     fn receive(&mut self, mut ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
       log::info!("TestActor received message: {:?}", msg);
       self.counter += 1;
+      // let chid_msg = format!("++{}++", msg);
+      // log::info!("TestActor send child message: {:?}", chid_msg);
+      // self.child_ref.as_mut().unwrap().tell(chid_msg);
 
       if self.counter == 2 {
         ctx.stop(ctx.self_ref().clone());
       }
-      // ctx.stop(self.child_ref.as_ref().unwrap().clone());
-      // ctx.stop(ctx.self_ref().clone());
-      // self.child_ref.as_mut().unwrap().tell(format!("++{}++", msg));
       Ok(())
     }
   }
@@ -234,7 +234,7 @@ mod test {
     actor_system_ref.tell("test-1".to_string());
     actor_system_ref.tell("test-2".to_string());
 
-    actor_system.when_terminate();
     actor_system.join();
+    actor_system.when_terminate();
   }
 }

@@ -477,13 +477,13 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
         msg.clone().typed_message::<Msg>().unwrap()
       );
     }
-    if !self.exists_actor() {
-      panic!(
-        "ActorCell not exists actor: path = {}, msg = {:?}",
-        self_ref.path(),
-        msg.clone().typed_message::<Msg>().unwrap()
-      );
-    }
+    // if !self.exists_actor() {
+    //   panic!(
+    //     "ActorCell not exists actor: path = {}, msg = {:?}",
+    //     self_ref.path(),
+    //     msg.clone().typed_message::<Msg>().unwrap()
+    //   );
+    // }
     {
       let inner = mutex_lock_with_log!(self.inner, "invoke");
       let mut current_message = inner.current_message.borrow_mut();
@@ -555,7 +555,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
               actor_ref_mut.around_post_stop(ctx).unwrap();
             }
             None => {
-              log::warn!("system_invoke: actor({}) is None", self_ref.path());
+              // log::warn!("system_invoke: actor({}) is None", self_ref.path());
             }
           }
         }
@@ -567,7 +567,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
           inner.children.clear();
           let parent_ref = inner.parent_ref.take();
           drop(parent_ref);
-          let actor = inner.actor.take().unwrap();
+          let actor = inner.actor.take();
           drop(actor);
         }
       }
