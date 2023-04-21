@@ -3,7 +3,6 @@ use std::fmt::Debug;
 use std::rc::Rc;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 use rand::{thread_rng, RngCore};
 use tokio::runtime::Runtime;
@@ -31,7 +30,6 @@ use crate::infrastructure::logging_mutex::LoggingMutex;
 
 use crate::mutex_lock_with_log;
 use tokio::sync::oneshot;
-use tokio::time::timeout;
 
 pub const UNDEFINED_UID: u32 = 0;
 
