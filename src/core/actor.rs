@@ -125,7 +125,7 @@ impl<Msg: Message> ActorMutableBehavior<AnyMessage> for AnyMessageActorWrapper<M
   }
 
   fn child_terminated(&mut self, ctx: ActorContext<AnyMessage>, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
-    let _actor = self.actor.borrow_mut();
+    // let _actor = self.actor.borrow_mut();
     log::info!("child_terminated: {:?}", ctx.to_typed::<Msg>(false));
     //    actor.around_child_terminated(ctx.to_typed(false), child)
     Ok(())

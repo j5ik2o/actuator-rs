@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::fmt::Debug;
+use std::process::exit;
 use std::rc::Rc;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
@@ -406,6 +407,7 @@ impl ActorCell<AnyMessage> {
     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell not initialized");
     }
+    log::debug!("check-1");
     let any_message_actor_wrapper = {
       let inner = mutex_lock_with_log!(self.inner, "to_typed");
       if let Some(actor) = inner.actor.clone() {
@@ -416,6 +418,7 @@ impl ActorCell<AnyMessage> {
         None
       }
     };
+    log::debug!("check-2");
     let props = {
       let inner = mutex_lock_with_log!(self.inner, "to_typed");
       let ptr = Rc::into_raw(inner.props.clone()).cast::<AnyProps<Msg>>();
