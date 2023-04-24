@@ -610,40 +610,38 @@ mod tests {
 
   #[derive(Debug, Clone)]
   struct TestActor;
+
   impl ActorBehavior<String> for TestActor {
     fn receive(&mut self, ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
       todo!()
     }
   }
+
   impl ActorBehavior<AnyMessage> for TestActor {
     fn receive(&mut self, ctx: ActorContext<AnyMessage>, msg: AnyMessage) -> ActorResult<()> {
       todo!()
     }
   }
+
   #[derive(Debug, Clone)]
-  struct TestProps {}
+  struct TestProps;
+
   impl TestProps {
     pub fn new() -> Self {
       Self {}
     }
   }
+
   impl Props<String> for TestProps {
     fn new_actor(&self) -> Rc<RefCell<dyn ActorBehavior<String>>> {
       Rc::new(RefCell::new(TestActor))
     }
-
-    // fn to_any(&self) -> Rc<dyn Props<AnyMessage>> {
-    //   Rc::new(TestProps::new())
-    // }
   }
+
   impl Props<AnyMessage> for TestProps {
     fn new_actor(&self) -> Rc<RefCell<dyn ActorBehavior<AnyMessage>>> {
       Rc::new(RefCell::new(TestActor))
     }
-
-    // fn to_any(&self) -> Rc<dyn Props<AnyMessage>> {
-    //   Rc::new(TestProps::new())
-    // }
   }
 
   fn init_logger() {
