@@ -133,18 +133,10 @@ impl<Msg: Message> ActorCell<Msg> {
     }
   }
 
-  // pub fn as_actor_any(&self) -> Option<Rc<RefCell<dyn Any>>> {
-  //   let inner = mutex_lock_with_log!(self.inner, "as_actor_any");
-  //   match &inner.actor {
-  //     Some(actor) => {
-  //       let a = actor.borrow();
-  //       let rc = unsafe { Rc::from_raw(a.as_any()) };
-  //       let result = (rc).clone();
-  //       Some(result)
-  //     }
-  //     None => None,
-  //   }
-  // }
+  pub fn children(&self) -> ChildrenRefs {
+    let inner = mutex_lock_with_log!(self.inner, "children");
+    inner.children.clone()
+  }
 
   pub fn initialize(
     &mut self,
@@ -398,6 +390,7 @@ impl ActorCell<AnyMessage> {
       let inner = mutex_lock_with_log!(self.inner, "to_typed");
       if let Some(actor) = &inner.actor {
         let borrow = actor.borrow();
+
         let result = borrow.as_any().downcast_ref::<AnyMessageActorWrapper<Msg>>().unwrap();
         Some(result.actor.clone())
       } else {
@@ -485,9 +478,9 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
       Ok(msg) => match msg.take::<AutoReceivedMessage>() {
         Ok(AutoReceivedMessage::Terminated(ar)) => {
           log::info!("start - around_child_terminated, ");
-          let actor = inner.actor.as_mut().unwrap().borrow();
+          let mut actor = inner.actor.as_mut().unwrap().borrow_mut();
           let ctx = ActorContext::new(self.clone(), self_ref.clone());
-          actor.around_child_terminated(ctx, ar.clone()).unwrap();
+          actor.around_child_terminated(ar.clone()).unwrap();
           log::info!("finished - around_child_terminated");
           let is_empty = {
             let mut inner = mutex_lock_with_log!(self.inner, "invoke");
@@ -638,18 +631,10 @@ mod tests {
     fn receive(&mut self, ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
       todo!()
     }
-
-    fn child_terminated(&self, _ctx: ActorContext<String>, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
-      todo!()
-    }
   }
 
   impl ActorBehavior<AnyMessage> for TestActor {
     fn receive(&mut self, ctx: ActorContext<AnyMessage>, msg: AnyMessage) -> ActorResult<()> {
-      todo!()
-    }
-
-    fn child_terminated(&self, _ctx: ActorContext<AnyMessage>, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
       todo!()
     }
   }

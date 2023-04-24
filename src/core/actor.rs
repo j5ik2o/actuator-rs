@@ -86,11 +86,11 @@ pub trait ActorBehavior<Msg: Message>: Debug + AsAny {
     Ok(())
   }
 
-  fn around_child_terminated(&self, ctx: ActorContext<Msg>, child: ActorRef<AnyMessage>) -> ActorResult<()> {
-    self.child_terminated(ctx, child)
+  fn around_child_terminated(&mut self, child: ActorRef<AnyMessage>) -> ActorResult<()> {
+    self.child_terminated(child)
   }
 
-  fn child_terminated(&self, _ctx: ActorContext<Msg>, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
+  fn child_terminated(&mut self, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
     log::info!("default child_terminated");
     Ok(())
   }
@@ -112,7 +112,7 @@ impl<Msg: Message> ActorBehavior<Msg> for MockActorMutable<Msg> {
     Ok(())
   }
 
-  fn child_terminated(&self, _ctx: ActorContext<Msg>, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
+  fn child_terminated(&mut self, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
     Ok(())
   }
 }
@@ -141,9 +141,9 @@ impl<Msg: Message> ActorBehavior<AnyMessage> for AnyMessageActorWrapper<Msg> {
     actor.around_receive(ctx.to_typed(true), typed_msg)
   }
 
-  fn child_terminated(&self, ctx: ActorContext<AnyMessage>, child: ActorRef<AnyMessage>) -> ActorResult<()> {
-    let actor = self.actor.borrow();
-    actor.around_child_terminated(ctx.clone().to_typed(false), child)
+  fn child_terminated(&mut self, child: ActorRef<AnyMessage>) -> ActorResult<()> {
+    let mut actor = self.actor.borrow_mut();
+    actor.around_child_terminated(child)
   }
 }
 
@@ -197,8 +197,8 @@ impl<Msg: Message> ActorBehavior<AnyMessage> for AnyMessageActorFunctionWrapper<
     actor.around_receive(ctx.to_typed(true), typed_msg)
   }
 
-  fn child_terminated(&self, ctx: ActorContext<AnyMessage>, child: ActorRef<AnyMessage>) -> ActorResult<()> {
-    let actor = self.actor.as_ref().unwrap().borrow();
-    actor.around_child_terminated(ctx.to_typed(true), child)
+  fn child_terminated(&mut self, child: ActorRef<AnyMessage>) -> ActorResult<()> {
+    let mut actor = self.actor.as_ref().unwrap().borrow_mut();
+    actor.around_child_terminated(child)
   }
 }

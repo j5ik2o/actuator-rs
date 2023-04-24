@@ -160,17 +160,10 @@ impl ChildrenRefs {
     props: Rc<dyn Props<U>>,
     name: &str,
   ) -> ActorRef<U> {
-    // log::debug!("make_child: start: name = {}, children = {}", name, self_ref.path());
     self.reserve_child(name);
     let mut actor_ref = cell.new_child_actor(self_ref, props, name);
     self.init_child(actor_ref.clone().to_any(false), name).unwrap();
-    // log::debug!("children: {:?}", self.children());
     actor_ref.start();
-    // log::debug!(
-    //   "make_child: finished: name = {}, children = {:?}",
-    //   name,
-    //   self.inner.lock().unwrap()
-    // );
     actor_ref
   }
 
