@@ -135,7 +135,7 @@ mod test {
   use crate::core::actor::actor_context::{ActorContext, ActorContextBehavior};
   use crate::core::actor::actor_ref::ActorRefBehavior;
   use crate::core::actor::props::FunctionProps;
-  use crate::core::actor::{ActorMutableBehavior, ActorResult};
+  use crate::core::actor::{ActorBehavior, ActorResult};
   use std::cell::RefCell;
   use std::env;
   use tokio::runtime;
@@ -149,7 +149,7 @@ mod test {
     }
   }
 
-  impl ActorMutableBehavior<String> for TestChildActor {
+  impl ActorBehavior<String> for TestChildActor {
     fn receive(&mut self, _ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
       log::info!("TestChildActor received message: {:?}", msg);
       Ok(())
@@ -192,7 +192,7 @@ mod test {
     }
   }
 
-  impl ActorMutableBehavior<String> for TestActor {
+  impl ActorBehavior<String> for TestActor {
     fn pre_start(&mut self, mut ctx: ActorContext<String>) -> ActorResult<()> {
       log::info!("TestActor pre_start");
       let props = Rc::new(FunctionProps::<String>::new(|| Rc::new(RefCell::new(TestChildActor))));

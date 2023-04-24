@@ -88,19 +88,19 @@ mod tests {
   use crate::core::actor::actor_path::ActorPath;
   use crate::core::actor::actor_ref::ActorRef;
   use crate::core::actor::props::Props;
-  use crate::core::actor::{ActorMutableBehavior, ActorResult};
+  use crate::core::actor::{ActorBehavior, ActorResult};
   use crate::core::dispatch::any_message::AnyMessage;
   use crate::core::dispatch::dispatcher::Dispatcher;
   use crate::core::dispatch::mailbox::mailbox_type::MailboxType;
   use crate::core::dispatch::mailboxes::Mailboxes;
   #[derive(Debug, Clone)]
   struct TestActor;
-  impl ActorMutableBehavior<String> for TestActor {
+  impl ActorBehavior<String> for TestActor {
     fn receive(&mut self, ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
       todo!()
     }
   }
-  impl ActorMutableBehavior<AnyMessage> for TestActor {
+  impl ActorBehavior<AnyMessage> for TestActor {
     fn receive(&mut self, ctx: ActorContext<AnyMessage>, msg: AnyMessage) -> ActorResult<()> {
       todo!()
     }
@@ -113,7 +113,7 @@ mod tests {
     }
   }
   impl Props<String> for TestProps {
-    fn new_actor(&self) -> Rc<RefCell<dyn ActorMutableBehavior<String>>> {
+    fn new_actor(&self) -> Rc<RefCell<dyn ActorBehavior<String>>> {
       Rc::new(RefCell::new(TestActor))
     }
 
@@ -122,7 +122,7 @@ mod tests {
     // }
   }
   impl Props<AnyMessage> for TestProps {
-    fn new_actor(&self) -> Rc<RefCell<dyn ActorMutableBehavior<AnyMessage>>> {
+    fn new_actor(&self) -> Rc<RefCell<dyn ActorBehavior<AnyMessage>>> {
       Rc::new(RefCell::new(TestActor))
     }
 

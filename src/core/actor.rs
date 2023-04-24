@@ -29,7 +29,7 @@ pub enum ActorError {
   ActorFailed { message: String },
 }
 
-pub trait ActorMutableBehavior<Msg: Message>: Debug {
+pub trait ActorBehavior<Msg: Message>: Debug {
   fn around_receive(&mut self, ctx: ActorContext<Msg>, msg: Msg) -> ActorResult<()> {
     self.receive(ctx, msg)
   }
@@ -96,7 +96,7 @@ pub struct MockActorMutable<Msg: Message> {
   p: PhantomData<Msg>,
 }
 
-impl<Msg: Message> ActorMutableBehavior<Msg> for MockActorMutable<Msg> {
+impl<Msg: Message> ActorBehavior<Msg> for MockActorMutable<Msg> {
   fn receive(&mut self, _ctx: ActorContext<Msg>, _msg: Msg) -> ActorResult<()> {
     Ok(())
   }
@@ -108,16 +108,16 @@ impl<Msg: Message> ActorMutableBehavior<Msg> for MockActorMutable<Msg> {
 
 #[derive(Debug, Clone)]
 pub struct AnyMessageActorWrapper<Msg: Message> {
-  actor: Rc<RefCell<dyn ActorMutableBehavior<Msg>>>,
+  actor: Rc<RefCell<dyn ActorBehavior<Msg>>>,
 }
 
 impl<Msg: Message> AnyMessageActorWrapper<Msg> {
-  pub fn new(actor: Rc<RefCell<dyn ActorMutableBehavior<Msg>>>) -> Self {
+  pub fn new(actor: Rc<RefCell<dyn ActorBehavior<Msg>>>) -> Self {
     Self { actor }
   }
 }
 
-impl<Msg: Message> ActorMutableBehavior<AnyMessage> for AnyMessageActorWrapper<Msg> {
+impl<Msg: Message> ActorBehavior<AnyMessage> for AnyMessageActorWrapper<Msg> {
   fn receive(&mut self, ctx: ActorContext<AnyMessage>, msg: AnyMessage) -> ActorResult<()> {
     let typed_msg = msg.take::<Msg>().unwrap();
     let mut actor = self.actor.borrow_mut();
@@ -134,8 +134,8 @@ impl<Msg: Message> ActorMutableBehavior<AnyMessage> for AnyMessageActorWrapper<M
 }
 
 pub struct AnyMessageActorFunctionWrapper<Msg: Message> {
-  actor_f: Rc<dyn Fn() -> Rc<RefCell<dyn ActorMutableBehavior<Msg>>>>,
-  actor: Option<Rc<RefCell<dyn ActorMutableBehavior<Msg>>>>,
+  actor_f: Rc<dyn Fn() -> Rc<RefCell<dyn ActorBehavior<Msg>>>>,
+  actor: Option<Rc<RefCell<dyn ActorBehavior<Msg>>>>,
 }
 
 impl<Msg: Message> Debug for AnyMessageActorFunctionWrapper<Msg> {
@@ -156,7 +156,7 @@ impl<Msg: Message> Clone for AnyMessageActorFunctionWrapper<Msg> {
 impl<Msg: Message> AnyMessageActorFunctionWrapper<Msg> {
   pub fn new<F>(f: F) -> Self
   where
-    F: Fn() -> Rc<RefCell<dyn ActorMutableBehavior<Msg>>> + 'static, {
+    F: Fn() -> Rc<RefCell<dyn ActorBehavior<Msg>>> + 'static, {
     Self {
       actor_f: Rc::new(f),
       actor: None,
@@ -164,7 +164,7 @@ impl<Msg: Message> AnyMessageActorFunctionWrapper<Msg> {
   }
 }
 
-impl<Msg: Message> ActorMutableBehavior<AnyMessage> for AnyMessageActorFunctionWrapper<Msg> {
+impl<Msg: Message> ActorBehavior<AnyMessage> for AnyMessageActorFunctionWrapper<Msg> {
   fn pre_start(&mut self, _ctx: ActorContext<AnyMessage>) -> ActorResult<()> {
     let a = (self.actor_f)();
     self.actor = Some(a);

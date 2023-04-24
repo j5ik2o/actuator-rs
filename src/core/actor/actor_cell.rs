@@ -17,7 +17,7 @@ use crate::core::actor::actor_ref::{ActorRef, ActorRefBehavior, AnyActorRef, Any
 
 use crate::core::actor::children_refs::ChildrenRefs;
 use crate::core::actor::props::{AnyProps, Props};
-use crate::core::actor::{ActorError, ActorMutableBehavior, AnyMessageActorWrapper};
+use crate::core::actor::{ActorBehavior, ActorError, AnyMessageActorWrapper};
 use crate::core::dispatch::any_message::AnyMessage;
 use crate::core::dispatch::dispatcher::{Dispatcher, DispatcherBehavior};
 use crate::core::dispatch::envelope::Envelope;
@@ -75,7 +75,7 @@ struct ActorCellInner<Msg: Message> {
   dead_letter_mailbox: Option<DeadLetterMailbox>,
   mailbox_sender: Option<MailboxSender<Msg>>,
   props: Rc<dyn Props<Msg>>,
-  actor: Option<Rc<RefCell<dyn ActorMutableBehavior<Msg>>>>,
+  actor: Option<Rc<RefCell<dyn ActorBehavior<Msg>>>>,
   children: ChildrenRefs,
   current_message: Rc<RefCell<Option<Envelope>>>,
 }
@@ -181,8 +181,8 @@ impl<Msg: Message> ActorCell<Msg> {
 
   fn check_actor<U: Message>(
     validate_actor: bool,
-    actor: Option<Rc<RefCell<dyn ActorMutableBehavior<U>>>>,
-  ) -> Option<Rc<RefCell<dyn ActorMutableBehavior<U>>>> {
+    actor: Option<Rc<RefCell<dyn ActorBehavior<U>>>>,
+  ) -> Option<Rc<RefCell<dyn ActorBehavior<U>>>> {
     match &actor {
       None => {
         if validate_actor {
@@ -598,7 +598,7 @@ mod tests {
   use crate::core::actor::actor_path::ActorPath;
   use crate::core::actor::actor_ref::ActorRef;
   use crate::core::actor::props::Props;
-  use crate::core::actor::{ActorMutableBehavior, ActorResult};
+  use crate::core::actor::{ActorBehavior, ActorResult};
   use crate::core::dispatch::any_message::AnyMessage;
   use crate::core::dispatch::dispatcher::Dispatcher;
   use crate::core::dispatch::mailbox::mailbox_type::MailboxType;
@@ -610,12 +610,12 @@ mod tests {
 
   #[derive(Debug, Clone)]
   struct TestActor;
-  impl ActorMutableBehavior<String> for TestActor {
+  impl ActorBehavior<String> for TestActor {
     fn receive(&mut self, ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
       todo!()
     }
   }
-  impl ActorMutableBehavior<AnyMessage> for TestActor {
+  impl ActorBehavior<AnyMessage> for TestActor {
     fn receive(&mut self, ctx: ActorContext<AnyMessage>, msg: AnyMessage) -> ActorResult<()> {
       todo!()
     }
@@ -628,7 +628,7 @@ mod tests {
     }
   }
   impl Props<String> for TestProps {
-    fn new_actor(&self) -> Rc<RefCell<dyn ActorMutableBehavior<String>>> {
+    fn new_actor(&self) -> Rc<RefCell<dyn ActorBehavior<String>>> {
       Rc::new(RefCell::new(TestActor))
     }
 
@@ -637,7 +637,7 @@ mod tests {
     // }
   }
   impl Props<AnyMessage> for TestProps {
-    fn new_actor(&self) -> Rc<RefCell<dyn ActorMutableBehavior<AnyMessage>>> {
+    fn new_actor(&self) -> Rc<RefCell<dyn ActorBehavior<AnyMessage>>> {
       Rc::new(RefCell::new(TestActor))
     }
 
