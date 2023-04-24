@@ -1,11 +1,12 @@
+use std::rc::Rc;
+use std::time::Duration;
+
 use crate::core::actor::actor_cell::ActorCell;
 use crate::core::actor::actor_cell_with_ref::ActorCellWithRef;
 use crate::core::actor::actor_ref::ActorRef;
 use crate::core::actor::props::Props;
 use crate::core::dispatch::any_message::AnyMessage;
 use crate::core::dispatch::message::Message;
-use std::rc::Rc;
-use std::time::Duration;
 
 #[derive(Debug, Clone)]
 pub struct ActorContext<Msg: Message> {
@@ -72,5 +73,33 @@ impl<Msg: Message> ActorContextBehavior<Msg> for ActorContext<Msg> {
 
   fn message_adaptor<U: Message>(&self, _f: impl Fn(U) -> Msg + 'static) -> ActorRef<U> {
     todo!()
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use std::rc::Rc;
+  use std::sync::{Arc, Mutex};
+
+  use crate::core::actor::actor_cell::ActorCell;
+  use crate::core::actor::actor_context::ActorContext;
+  use crate::core::actor::actor_path::ActorPath;
+  use crate::core::actor::actor_ref::ActorRef;
+  use crate::core::dispatch::dispatcher::Dispatcher;
+  use crate::core::dispatch::mailbox::mailbox_type::MailboxType;
+  use crate::core::dispatch::mailboxes::Mailboxes;
+
+  #[test]
+  fn test() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let mailboxes = Mailboxes::new(
+      MailboxType::Unbounded,
+      ActorRef::of_dead_letters(ActorPath::from_string("test://test")),
+    );
+    let dispatcher = Dispatcher::new(Arc::new(runtime), Arc::new(Mutex::new(mailboxes)));
+    let path = ActorPath::from_string("test://test");
+    let ac: ActorCell<String> = ActorCell::new(dispatcher, path.clone(), Rc::new(TestProps {}), None);
+    let ar = ActorRef::of_local(ac.clone(), path);
+    let actor_context = ActorContext::new(ac, ar);
   }
 }

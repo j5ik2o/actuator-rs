@@ -193,7 +193,7 @@ impl<Msg: Message> SystemMailboxSender<Msg> {
         true
       }
     };
-    log::debug!(">>>> system_message_opt_guard = {:?}", system_message_opt_guard);
+    // log::debug!(">>>> system_message_opt_guard = {:?}", system_message_opt_guard);
     result
   }
 }
@@ -201,13 +201,14 @@ impl<Msg: Message> SystemMailboxSender<Msg> {
 impl<Msg: Message> SystemMessageQueueWriterBehavior<Msg> for SystemMailboxSender<Msg> {
   fn system_enqueue(&mut self, receiver: ActorRef<Msg>, message: &mut SystemMessageEntry) {
     let current_list = self.underlying.system_queue_get();
-    log::debug!(">>>> current_list = {:?}", current_list);
+    // log::debug!(">>>> current_list = {:?}", current_list);
     let head_arc_opt = current_list.head();
     if head_arc_opt.iter().any(|head_arc| {
       let system_message_guard = head_arc.lock().unwrap();
       system_message_guard.is_no_message()
     }) {
       // TODO: デッドレターに送る
+      log::warn!("DeadLetter: {:?}", message);
       ()
     } else {
       if !self.system_queue_put(&current_list.clone(), &current_list.prepend(message.clone())) {

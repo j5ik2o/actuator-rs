@@ -2,13 +2,13 @@ use std::collections::{BTreeMap, HashSet};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use base64_string_rs::Base64StringFactory;
-use rand::RngCore;
-
 use crate::core::actor::actor_cell::ActorCell;
 use crate::core::actor::actor_path::ActorPath;
 use crate::core::actor::actor_ref::ActorRef;
+use crate::core::actor::actor_ref::ActorRefBehavior;
 use crate::core::actor::child_state::{ChildRestartStats, ChildState};
+use base64_string_rs::Base64StringFactory;
+use rand::RngCore;
 
 use crate::core::actor::props::Props;
 use crate::core::dispatch::any_message::AnyMessage;
@@ -67,6 +67,7 @@ impl ChildrenRefs {
       match state {
         ChildState::ChildRestartStats(stats) => {
           let actor_ref = stats.child_ref_mut();
+          log::debug!("Stopping child: {}", actor_ref.path().to_string());
           actor_ref.stop();
         }
         _ => {}

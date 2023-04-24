@@ -1,11 +1,13 @@
 use std::cell::RefCell;
 use std::fmt::Debug;
 
+use env_logger::builder;
 use std::rc::Rc;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
 use rand::{thread_rng, RngCore};
+use tokio::runtime;
 use tokio::runtime::Runtime;
 
 use crate::core::actor::actor_cell_with_ref::ActorCellWithRef;
@@ -29,6 +31,8 @@ use crate::core::dispatch::system_message::SystemMessageQueueWriterBehavior;
 
 use crate::infrastructure::logging_mutex::LoggingMutex;
 
+use crate::core::actor::actor_ref::ActorRef::DeadLetters;
+use crate::core::dispatch::mailboxes::Mailboxes;
 use crate::mutex_lock_with_log;
 use tokio::sync::oneshot;
 
@@ -224,11 +228,9 @@ impl<Msg: Message> ActorCell<Msg> {
   }
 
   pub fn to_any(self, validate_actor: bool) -> ActorCell<AnyMessage> {
-    if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
+    if validate_actor && !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell not initialized");
     }
-    let rc: fn(Rc<RefCell<dyn ActorMutableBehavior<Msg>>>) -> Rc<RefCell<dyn ActorMutableBehavior<AnyMessage>>> =
-      |e: Rc<RefCell<dyn ActorMutableBehavior<Msg>>>| Rc::new(RefCell::new(AnyMessageActorWrapper::new(e.clone())));
     let inner = mutex_lock_with_log!(self.inner, "to_any");
     ActorCell {
       terminated_rx: self.terminated_rx.clone(),
@@ -244,8 +246,11 @@ impl<Msg: Message> ActorCell<Msg> {
           mailbox: inner.mailbox.clone().map(Mailbox::to_any),
           dead_letter_mailbox: inner.dead_letter_mailbox.clone(),
           mailbox_sender: inner.mailbox_sender.clone().map(MailboxSender::to_any),
-          props: inner.props.to_any(),
-          actor: Self::check_actor(validate_actor, inner.actor.clone().map(rc)),
+          props: Rc::new(AnyProps::new(inner.props.clone())),
+          actor: match &inner.actor {
+            None => None,
+            Some(actor) => Some(Rc::new(RefCell::new(AnyMessageActorWrapper::new(actor.clone())))),
+          },
           children: inner.children.clone(),
           current_message: inner.current_message.clone(),
         },
@@ -404,24 +409,23 @@ impl<Msg: Message> ActorCell<Msg> {
 
 impl ActorCell<AnyMessage> {
   pub fn to_typed<Msg: Message>(self, validate_actor: bool) -> ActorCell<Msg> {
-    if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
+    if validate_actor && !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell not initialized");
     }
-    log::debug!("check-1");
     let any_message_actor_wrapper = {
       let inner = mutex_lock_with_log!(self.inner, "to_typed");
-      if let Some(actor) = inner.actor.clone() {
-        let ptr = Rc::into_raw(actor).cast::<AnyMessageActorWrapper<Msg>>();
+      if let Some(actor) = &inner.actor {
+        let ptr = Rc::into_raw(actor.clone()).cast::<AnyMessageActorWrapper<Msg>>();
         let rc = unsafe { Rc::from_raw(ptr) };
         Some((&*rc).clone())
       } else {
         None
       }
     };
-    log::debug!("check-2");
     let props = {
       let inner = mutex_lock_with_log!(self.inner, "to_typed");
-      let ptr = Rc::into_raw(inner.props.clone()).cast::<AnyProps<Msg>>();
+      let props_rc = inner.props.clone();
+      let ptr = Rc::into_raw(props_rc).cast::<AnyProps<Msg>>();
       let rc = unsafe { Rc::from_raw(ptr) };
       (&*rc).clone()
     };
@@ -512,10 +516,14 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
             self.tell_terminated_to_parent(self_ref);
           }
         }
+        Ok(msg) => {
+          log::info!("auto_received_message - {:?}", msg);
+        }
         _ => {}
       },
       Err(_) => {
         let msg = msg.clone().typed_message::<Msg>().unwrap();
+        log::info!("received_message - {:?}", msg);
         actor.around_receive(ctx, msg).unwrap();
       }
     }
@@ -560,7 +568,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
               actor_ref_mut.around_post_stop(ctx).unwrap();
             }
             None => {
-              // log::warn!("system_invoke: actor({}) is None", self_ref.path());
+              log::warn!("system_invoke: actor({}) is None", self_ref.path());
             }
           }
         }
@@ -583,7 +591,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
 
 impl<Msg: Message> ActorCell<Msg> {
   pub fn when_terminate(&self) {
-    let runner = Runtime::new().unwrap();
+    let runner = runtime::Builder::new_current_thread().enable_all().build().unwrap();
     let mut rx_g = self.terminated_rx.lock().unwrap();
     let rx = rx_g.take().unwrap();
     runner.block_on(async move {
@@ -612,5 +620,81 @@ impl<Msg: Message> ActorCell<Msg> {
       let terminated_tx = tx_g.take().unwrap();
       terminated_tx.send(()).unwrap()
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::core::actor::actor_cell::ActorCell;
+  use crate::core::actor::actor_context::ActorContext;
+  use crate::core::actor::actor_path::ActorPath;
+  use crate::core::actor::actor_ref::ActorRef;
+  use crate::core::actor::props::Props;
+  use crate::core::actor::{ActorMutableBehavior, ActorResult};
+  use crate::core::dispatch::any_message::AnyMessage;
+  use crate::core::dispatch::dispatcher::Dispatcher;
+  use crate::core::dispatch::mailbox::mailbox_type::MailboxType;
+  use crate::core::dispatch::mailboxes::Mailboxes;
+  use std::cell::RefCell;
+  use std::env;
+  use std::rc::Rc;
+  use std::sync::{Arc, Mutex};
+
+  #[derive(Debug, Clone)]
+  struct TestActor;
+  impl ActorMutableBehavior<String> for TestActor {
+    fn receive(&mut self, ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
+      todo!()
+    }
+  }
+  impl ActorMutableBehavior<AnyMessage> for TestActor {
+    fn receive(&mut self, ctx: ActorContext<AnyMessage>, msg: AnyMessage) -> ActorResult<()> {
+      todo!()
+    }
+  }
+  #[derive(Debug, Clone)]
+  struct TestProps {}
+  impl TestProps {
+    pub fn new() -> Self {
+      Self {}
+    }
+  }
+  impl Props<String> for TestProps {
+    fn new_actor(&self) -> Rc<RefCell<dyn ActorMutableBehavior<String>>> {
+      Rc::new(RefCell::new(TestActor))
+    }
+
+    fn to_any(&self) -> Rc<dyn Props<AnyMessage>> {
+      Rc::new(TestProps::new())
+    }
+  }
+  impl Props<AnyMessage> for TestProps {
+    fn new_actor(&self) -> Rc<RefCell<dyn ActorMutableBehavior<AnyMessage>>> {
+      Rc::new(RefCell::new(TestActor))
+    }
+
+    fn to_any(&self) -> Rc<dyn Props<AnyMessage>> {
+      Rc::new(TestProps::new())
+    }
+  }
+
+  fn init_logger() {
+    let _ = env::set_var("RUST_LOG", "debug");
+    let _ = env_logger::builder().is_test(true).try_init();
+  }
+
+  #[test]
+  fn test() {
+    init_logger();
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let mailboxes = Mailboxes::new(
+      MailboxType::Unbounded,
+      ActorRef::of_dead_letters(ActorPath::from_string("test://test")),
+    );
+    let dispatcher = Dispatcher::new(Arc::new(runtime), Arc::new(Mutex::new(mailboxes)));
+    let path = ActorPath::from_string("test://test");
+    let ac: ActorCell<String> = ActorCell::new(dispatcher, path, Rc::new(TestProps {}), None);
+    let to_any = ac.to_any(false);
+    let org = to_any.to_typed::<String>(false);
   }
 }

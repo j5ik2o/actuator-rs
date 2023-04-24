@@ -231,7 +231,7 @@ mod test {
   }
 
   #[test]
-  fn test() {
+  fn test_actor_system() {
     init_logger();
     let runtime = runtime::Builder::new_multi_thread().enable_all().build().unwrap();
     let address = Address::new("tcp", "test");
@@ -244,7 +244,7 @@ mod test {
     actor_system_ref.tell("test-1".to_string());
     actor_system_ref.tell("test-2".to_string());
 
+    // actor_system.when_terminate();
     actor_system.join();
-    actor_system.when_terminate();
   }
 }
