@@ -4,7 +4,6 @@ use std::time::Duration;
 use crate::core::actor::actor_cell::ActorCell;
 use crate::core::actor::actor_cell_with_ref::ActorCellWithRef;
 use crate::core::actor::actor_ref::ActorRef;
-use crate::core::actor::children_refs::ChildrenRefs;
 use crate::core::actor::props::Props;
 use crate::core::dispatch::any_message::AnyMessage;
 use crate::core::dispatch::message::Message;
@@ -107,10 +106,6 @@ mod tests {
 
   impl ActorBehavior<String> for TestActor {
     fn receive(&mut self, ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
-      todo!()
-    }
-
-    fn child_terminated(&mut self, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
       todo!()
     }
   }

@@ -36,7 +36,7 @@ pub trait DispatcherBehavior {
 }
 
 impl Dispatcher {
-  const blocking_mode: bool = false;
+  const BLOCKING_MODE: bool = false;
 
   pub fn new(runtime: Arc<Runtime>, mailboxes: Arc<Mutex<Mailboxes>>) -> Self {
     Self {
@@ -86,7 +86,7 @@ impl Dispatcher {
     let mutable_result = if mailbox.can_be_scheduled_for_panic(has_message_hint, has_system_message_hint) {
       log::debug!("register_for_execution(): mailbox.set_as_scheduled()");
       if mailbox.set_as_scheduled() {
-        if !Self::blocking_mode {
+        if !Self::BLOCKING_MODE {
           let task = {
             let cloned_self = self.clone();
             self.runtime.spawn(async move {
@@ -102,7 +102,7 @@ impl Dispatcher {
           let cloned_self = self.clone();
           self.runtime.block_on(async move {
             log::debug!("mailbox.execute(): start");
-            mailbox.execute(actor_cell, cloned_self);
+            let _ = mailbox.execute(actor_cell, cloned_self);
             log::debug!("mailbox.execute(): finished");
             ()
           })
