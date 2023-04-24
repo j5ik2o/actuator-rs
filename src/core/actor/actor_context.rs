@@ -105,13 +105,13 @@ mod tests {
   }
 
   impl ActorBehavior<String> for TestActor {
-    fn receive(&mut self, ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
+    fn receive(&mut self, _ctx: ActorContext<String>, _msg: String) -> ActorResult<()> {
       todo!()
     }
   }
 
   impl ActorBehavior<AnyMessage> for TestActor {
-    fn receive(&mut self, ctx: ActorContext<AnyMessage>, msg: AnyMessage) -> ActorResult<()> {
+    fn receive(&mut self, _ctx: ActorContext<AnyMessage>, _msg: AnyMessage) -> ActorResult<()> {
       todo!()
     }
   }
@@ -154,6 +154,6 @@ mod tests {
     let path = ActorPath::from_string("test://test");
     let ac: ActorCell<String> = ActorCell::new(dispatcher, path.clone(), Rc::new(TestProps {}), None);
     let ar = ActorRef::of_local(ac.clone(), path);
-    let actor_context = ActorContext::new(ac, ar);
+    let _actor_context = ActorContext::new(ac, ar);
   }
 }

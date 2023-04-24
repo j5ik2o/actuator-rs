@@ -1,15 +1,12 @@
-use std::any::Any;
 use std::cell::RefCell;
 use std::fmt::Debug;
 
-use env_logger::builder;
 use std::rc::Rc;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
 use rand::{thread_rng, RngCore};
 use tokio::runtime;
-use tokio::runtime::Runtime;
 
 use crate::core::actor::actor_cell_with_ref::ActorCellWithRef;
 use crate::core::actor::actor_context::ActorContext;
@@ -32,8 +29,6 @@ use crate::core::dispatch::system_message::SystemMessageQueueWriterBehavior;
 
 use crate::infrastructure::logging_mutex::LoggingMutex;
 
-use crate::core::actor::actor_ref::ActorRef::DeadLetters;
-use crate::core::dispatch::mailboxes::Mailboxes;
 use crate::mutex_lock_with_log;
 use tokio::sync::oneshot;
 
@@ -478,7 +473,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
       Ok(msg) => match msg.take::<AutoReceivedMessage>() {
         Ok(AutoReceivedMessage::Terminated(ar)) => {
           let mut actor = inner.actor.as_mut().unwrap().borrow_mut();
-          let ctx = ActorContext::new(self.clone(), self_ref.clone());
+          let _ctx = ActorContext::new(self.clone(), self_ref.clone());
           actor.around_child_terminated(ar.clone()).unwrap();
           let is_empty = {
             let mut inner = mutex_lock_with_log!(self.inner, "invoke");
@@ -626,13 +621,13 @@ mod tests {
   }
 
   impl ActorBehavior<String> for TestActor {
-    fn receive(&mut self, ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
+    fn receive(&mut self, _ctx: ActorContext<String>, _msg: String) -> ActorResult<()> {
       todo!()
     }
   }
 
   impl ActorBehavior<AnyMessage> for TestActor {
-    fn receive(&mut self, ctx: ActorContext<AnyMessage>, msg: AnyMessage) -> ActorResult<()> {
+    fn receive(&mut self, _ctx: ActorContext<AnyMessage>, _msg: AnyMessage) -> ActorResult<()> {
       todo!()
     }
   }
@@ -675,6 +670,6 @@ mod tests {
     let path = ActorPath::from_string("test://test");
     let ac: ActorCell<String> = ActorCell::new(dispatcher, path, Rc::new(TestProps {}), None);
     let to_any = ac.to_any(false);
-    let org = to_any.to_typed::<String>(false);
+    let _org = to_any.to_typed::<String>(false);
   }
 }
