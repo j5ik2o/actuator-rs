@@ -80,15 +80,6 @@ struct ActorCellInner<Msg: Message> {
   current_message: Rc<RefCell<Option<Envelope>>>,
 }
 
-// impl<Msg: Message> Drop for ActorCellInner<Msg> {
-//   fn drop(&mut self) {
-//     if self.actor.is_some() {
-//       log::error!("=======> ActorCellInner({}) dropped before actor", self.path);
-//     }
-//     log::debug!("=======> Dropping ActorCellInner({})", self.path);
-//   }
-// }
-//
 #[derive(Debug, Clone)]
 pub struct ActorCell<Msg: Message> {
   initialized: Arc<AtomicBool>,
@@ -97,29 +88,6 @@ pub struct ActorCell<Msg: Message> {
   terminated_rx: Arc<Mutex<Option<oneshot::Receiver<()>>>>,
   tx: Arc<Mutex<Option<oneshot::Sender<()>>>>,
 }
-
-// impl<Msg: Message> Drop for ActorCell<Msg> {
-//   fn drop(&mut self) {
-//     let sc = Arc::strong_count(&self.inner);
-//     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
-//       log::error!(
-//         "******> ActorCell({}) dropped before initialized, sc = {}",
-//         self.path,
-//         sc
-//       );
-//     }
-//     log::debug!("******> Dropping ActorCell({}), sc = {}", self.path, sc);
-//   }
-// }
-
-// impl<Msg: Message> Debug for ActorCell<Msg> {
-//   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
-//       panic!("ActorCell not initialized");
-//     }
-//     write!(f, "ActorCell({:?})", self.inner)
-//   }
-// }
 
 unsafe impl<Msg: Message> Send for ActorCell<Msg> {}
 unsafe impl<Msg: Message> Sync for ActorCell<Msg> {}
@@ -504,7 +472,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
     match auto_received_message {
       Ok(msg) => match msg.take::<AutoReceivedMessage>() {
         Ok(AutoReceivedMessage::Terminated(ar)) => {
-          log::info!("start - around_child_terminated");
+          log::info!("start - around_child_terminated, ");
           actor.around_child_terminated(ctx, ar.clone()).unwrap();
           log::info!("finished - around_child_terminated");
           let is_empty = {
@@ -664,18 +632,18 @@ mod tests {
       Rc::new(RefCell::new(TestActor))
     }
 
-    fn to_any(&self) -> Rc<dyn Props<AnyMessage>> {
-      Rc::new(TestProps::new())
-    }
+    // fn to_any(&self) -> Rc<dyn Props<AnyMessage>> {
+    //   Rc::new(TestProps::new())
+    // }
   }
   impl Props<AnyMessage> for TestProps {
     fn new_actor(&self) -> Rc<RefCell<dyn ActorMutableBehavior<AnyMessage>>> {
       Rc::new(RefCell::new(TestActor))
     }
 
-    fn to_any(&self) -> Rc<dyn Props<AnyMessage>> {
-      Rc::new(TestProps::new())
-    }
+    // fn to_any(&self) -> Rc<dyn Props<AnyMessage>> {
+    //   Rc::new(TestProps::new())
+    // }
   }
 
   fn init_logger() {

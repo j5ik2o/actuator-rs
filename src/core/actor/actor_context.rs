@@ -78,6 +78,8 @@ impl<Msg: Message> ActorContextBehavior<Msg> for ActorContext<Msg> {
 
 #[cfg(test)]
 mod tests {
+  use std::cell::RefCell;
+  use std::env;
   use std::rc::Rc;
   use std::sync::{Arc, Mutex};
 
@@ -85,12 +87,57 @@ mod tests {
   use crate::core::actor::actor_context::ActorContext;
   use crate::core::actor::actor_path::ActorPath;
   use crate::core::actor::actor_ref::ActorRef;
+  use crate::core::actor::props::Props;
+  use crate::core::actor::{ActorMutableBehavior, ActorResult};
+  use crate::core::dispatch::any_message::AnyMessage;
   use crate::core::dispatch::dispatcher::Dispatcher;
   use crate::core::dispatch::mailbox::mailbox_type::MailboxType;
   use crate::core::dispatch::mailboxes::Mailboxes;
+  #[derive(Debug, Clone)]
+  struct TestActor;
+  impl ActorMutableBehavior<String> for TestActor {
+    fn receive(&mut self, ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
+      todo!()
+    }
+  }
+  impl ActorMutableBehavior<AnyMessage> for TestActor {
+    fn receive(&mut self, ctx: ActorContext<AnyMessage>, msg: AnyMessage) -> ActorResult<()> {
+      todo!()
+    }
+  }
+  #[derive(Debug, Clone)]
+  struct TestProps {}
+  impl TestProps {
+    pub fn new() -> Self {
+      Self {}
+    }
+  }
+  impl Props<String> for TestProps {
+    fn new_actor(&self) -> Rc<RefCell<dyn ActorMutableBehavior<String>>> {
+      Rc::new(RefCell::new(TestActor))
+    }
 
+    // fn to_any(&self) -> Rc<dyn Props<AnyMessage>> {
+    //   Rc::new(TestProps::new())
+    // }
+  }
+  impl Props<AnyMessage> for TestProps {
+    fn new_actor(&self) -> Rc<RefCell<dyn ActorMutableBehavior<AnyMessage>>> {
+      Rc::new(RefCell::new(TestActor))
+    }
+
+    // fn to_any(&self) -> Rc<dyn Props<AnyMessage>> {
+    //   Rc::new(TestProps::new())
+    // }
+  }
+
+  fn init_logger() {
+    let _ = env::set_var("RUST_LOG", "debug");
+    let _ = env_logger::builder().is_test(true).try_init();
+  }
   #[test]
   fn test() {
+    init_logger();
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let mailboxes = Mailboxes::new(
       MailboxType::Unbounded,
