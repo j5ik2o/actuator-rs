@@ -78,6 +78,7 @@ impl<Msg: Message> ActorContextBehavior<Msg> for ActorContext<Msg> {
 
 #[cfg(test)]
 mod tests {
+  use std::any::Any;
   use std::cell::RefCell;
   use std::env;
   use std::rc::Rc;
@@ -88,7 +89,7 @@ mod tests {
   use crate::core::actor::actor_path::ActorPath;
   use crate::core::actor::actor_ref::ActorRef;
   use crate::core::actor::props::Props;
-  use crate::core::actor::{ActorBehavior, ActorResult};
+  use crate::core::actor::{ActorBehavior, ActorResult, AsAny};
   use crate::core::dispatch::any_message::AnyMessage;
   use crate::core::dispatch::dispatcher::Dispatcher;
   use crate::core::dispatch::mailbox::mailbox_type::MailboxType;
@@ -97,14 +98,28 @@ mod tests {
   #[derive(Debug, Clone)]
   struct TestActor;
 
+  impl AsAny for TestActor {
+    fn as_any(&self) -> &dyn Any {
+      todo!()
+    }
+  }
+
   impl ActorBehavior<String> for TestActor {
     fn receive(&mut self, ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
+      todo!()
+    }
+
+    fn child_terminated(&self, _ctx: ActorContext<String>, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
       todo!()
     }
   }
 
   impl ActorBehavior<AnyMessage> for TestActor {
     fn receive(&mut self, ctx: ActorContext<AnyMessage>, msg: AnyMessage) -> ActorResult<()> {
+      todo!()
+    }
+
+    fn child_terminated(&self, _ctx: ActorContext<AnyMessage>, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
       todo!()
     }
   }

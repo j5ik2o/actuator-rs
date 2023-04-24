@@ -135,7 +135,8 @@ mod test {
   use crate::core::actor::actor_context::{ActorContext, ActorContextBehavior};
   use crate::core::actor::actor_ref::ActorRefBehavior;
   use crate::core::actor::props::FunctionProps;
-  use crate::core::actor::{ActorBehavior, ActorResult};
+  use crate::core::actor::{ActorBehavior, ActorResult, AsAny};
+  use std::any::Any;
   use std::cell::RefCell;
   use std::env;
   use tokio::runtime;
@@ -146,6 +147,12 @@ mod test {
   impl Drop for TestChildActor {
     fn drop(&mut self) {
       log::info!("TestChildActor drop");
+    }
+  }
+
+  impl AsAny for TestChildActor {
+    fn as_any(&self) -> &dyn Any {
+      todo!()
     }
   }
 
@@ -165,7 +172,7 @@ mod test {
       Ok(())
     }
 
-    fn child_terminated(&mut self, _ctx: ActorContext<String>, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
+    fn child_terminated(&self, _ctx: ActorContext<String>, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
       log::info!("TestChildActor child_terminated");
       Ok(())
     }
@@ -192,6 +199,12 @@ mod test {
     }
   }
 
+  impl AsAny for TestActor {
+    fn as_any(&self) -> &dyn Any {
+      self
+    }
+  }
+
   impl ActorBehavior<String> for TestActor {
     fn pre_start(&mut self, mut ctx: ActorContext<String>) -> ActorResult<()> {
       log::info!("TestActor pre_start");
@@ -206,7 +219,7 @@ mod test {
       Ok(())
     }
 
-    fn child_terminated(&mut self, _ctx: ActorContext<String>, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
+    fn child_terminated(&self, _ctx: ActorContext<String>, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
       log::info!("TestActor child_terminated");
       Ok(())
     }

@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::cell::RefCell;
 use std::fmt::Debug;
 
@@ -131,6 +132,19 @@ impl<Msg: Message> ActorCell<Msg> {
       )),
     }
   }
+
+  // pub fn as_actor_any(&self) -> Option<Rc<RefCell<dyn Any>>> {
+  //   let inner = mutex_lock_with_log!(self.inner, "as_actor_any");
+  //   match &inner.actor {
+  //     Some(actor) => {
+  //       let a = actor.borrow();
+  //       let rc = unsafe { Rc::from_raw(a.as_any()) };
+  //       let result = (rc).clone();
+  //       Some(result)
+  //     }
+  //     None => None,
+  //   }
+  // }
 
   pub fn initialize(
     &mut self,
@@ -383,9 +397,9 @@ impl ActorCell<AnyMessage> {
     let any_message_actor_wrapper = {
       let inner = mutex_lock_with_log!(self.inner, "to_typed");
       if let Some(actor) = &inner.actor {
-        let ptr = Rc::into_raw(actor.clone()).cast::<AnyMessageActorWrapper<Msg>>();
-        let rc = unsafe { Rc::from_raw(ptr) };
-        Some((&*rc).clone())
+        let borrow = actor.borrow();
+        let result = borrow.as_any().downcast_ref::<AnyMessageActorWrapper<Msg>>().unwrap();
+        Some(result.actor.clone())
       } else {
         None
       }
@@ -413,7 +427,7 @@ impl ActorCell<AnyMessage> {
           dead_letter_mailbox: inner.dead_letter_mailbox.clone(),
           mailbox_sender: inner.mailbox_sender.clone().map(MailboxSender::to_typed),
           props: props.underlying,
-          actor: Self::check_actor(validate_actor, any_message_actor_wrapper.map(|e| e.actor)),
+          actor: Self::check_actor(validate_actor, any_message_actor_wrapper),
           children: inner.children.clone(),
           current_message: inner.current_message.clone(),
         },
@@ -464,15 +478,15 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
       let mut current_message = inner.current_message.borrow_mut();
       *current_message = Some(msg.clone());
     }
-    let ctx = ActorContext::new(self.clone(), self_ref.clone());
     let mut inner = mutex_lock_with_log!(self.inner, "invoke").clone();
-    let mut actor = inner.actor.as_mut().unwrap().borrow_mut();
 
     let auto_received_message = msg.clone().typed_message::<AnyMessage>();
     match auto_received_message {
       Ok(msg) => match msg.take::<AutoReceivedMessage>() {
         Ok(AutoReceivedMessage::Terminated(ar)) => {
           log::info!("start - around_child_terminated, ");
+          let actor = inner.actor.as_mut().unwrap().borrow();
+          let ctx = ActorContext::new(self.clone(), self_ref.clone());
           actor.around_child_terminated(ctx, ar.clone()).unwrap();
           log::info!("finished - around_child_terminated");
           let is_empty = {
@@ -490,8 +504,10 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
         _ => {}
       },
       Err(_) => {
+        let ctx = ActorContext::new(self.clone(), self_ref.clone());
         let msg = msg.clone().typed_message::<Msg>().unwrap();
         log::info!("received_message - {:?}", msg);
+        let mut actor = inner.actor.as_mut().unwrap().borrow_mut();
         actor.around_receive(ctx, msg).unwrap();
       }
     }
@@ -598,11 +614,12 @@ mod tests {
   use crate::core::actor::actor_path::ActorPath;
   use crate::core::actor::actor_ref::ActorRef;
   use crate::core::actor::props::Props;
-  use crate::core::actor::{ActorBehavior, ActorResult};
+  use crate::core::actor::{ActorBehavior, ActorResult, AsAny};
   use crate::core::dispatch::any_message::AnyMessage;
   use crate::core::dispatch::dispatcher::Dispatcher;
   use crate::core::dispatch::mailbox::mailbox_type::MailboxType;
   use crate::core::dispatch::mailboxes::Mailboxes;
+  use std::any::Any;
   use std::cell::RefCell;
   use std::env;
   use std::rc::Rc;
@@ -611,14 +628,28 @@ mod tests {
   #[derive(Debug, Clone)]
   struct TestActor;
 
+  impl AsAny for TestActor {
+    fn as_any(&self) -> &dyn Any {
+      todo!()
+    }
+  }
+
   impl ActorBehavior<String> for TestActor {
     fn receive(&mut self, ctx: ActorContext<String>, msg: String) -> ActorResult<()> {
+      todo!()
+    }
+
+    fn child_terminated(&self, _ctx: ActorContext<String>, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
       todo!()
     }
   }
 
   impl ActorBehavior<AnyMessage> for TestActor {
     fn receive(&mut self, ctx: ActorContext<AnyMessage>, msg: AnyMessage) -> ActorResult<()> {
+      todo!()
+    }
+
+    fn child_terminated(&self, _ctx: ActorContext<AnyMessage>, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
       todo!()
     }
   }

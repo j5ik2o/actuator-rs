@@ -15,6 +15,7 @@ use crate::core::actor::actor_context::ActorContext;
 use crate::core::actor::actor_ref::ActorRef;
 use crate::core::dispatch::any_message::AnyMessage;
 use crate::core::dispatch::message::Message;
+use std::any::Any;
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -29,7 +30,11 @@ pub enum ActorError {
   ActorFailed { message: String },
 }
 
-pub trait ActorBehavior<Msg: Message>: Debug {
+pub trait AsAny {
+  fn as_any(&self) -> &dyn Any;
+}
+
+pub trait ActorBehavior<Msg: Message>: Debug + AsAny {
   fn around_receive(&mut self, ctx: ActorContext<Msg>, msg: Msg) -> ActorResult<()> {
     self.receive(ctx, msg)
   }
@@ -81,11 +86,11 @@ pub trait ActorBehavior<Msg: Message>: Debug {
     Ok(())
   }
 
-  fn around_child_terminated(&mut self, ctx: ActorContext<Msg>, child: ActorRef<AnyMessage>) -> ActorResult<()> {
+  fn around_child_terminated(&self, ctx: ActorContext<Msg>, child: ActorRef<AnyMessage>) -> ActorResult<()> {
     self.child_terminated(ctx, child)
   }
 
-  fn child_terminated(&mut self, _ctx: ActorContext<Msg>, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
+  fn child_terminated(&self, _ctx: ActorContext<Msg>, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
     log::info!("default child_terminated");
     Ok(())
   }
@@ -96,12 +101,18 @@ pub struct MockActorMutable<Msg: Message> {
   p: PhantomData<Msg>,
 }
 
+impl<Msg: Message> AsAny for MockActorMutable<Msg> {
+  fn as_any(&self) -> &dyn Any {
+    self
+  }
+}
+
 impl<Msg: Message> ActorBehavior<Msg> for MockActorMutable<Msg> {
   fn receive(&mut self, _ctx: ActorContext<Msg>, _msg: Msg) -> ActorResult<()> {
     Ok(())
   }
 
-  fn child_terminated(&mut self, _ctx: ActorContext<Msg>, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
+  fn child_terminated(&self, _ctx: ActorContext<Msg>, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
     Ok(())
   }
 }
@@ -117,6 +128,12 @@ impl<Msg: Message> AnyMessageActorWrapper<Msg> {
   }
 }
 
+impl<Msg: Message> AsAny for AnyMessageActorWrapper<Msg> {
+  fn as_any(&self) -> &dyn Any {
+    self
+  }
+}
+
 impl<Msg: Message> ActorBehavior<AnyMessage> for AnyMessageActorWrapper<Msg> {
   fn receive(&mut self, ctx: ActorContext<AnyMessage>, msg: AnyMessage) -> ActorResult<()> {
     let typed_msg = msg.take::<Msg>().unwrap();
@@ -124,12 +141,9 @@ impl<Msg: Message> ActorBehavior<AnyMessage> for AnyMessageActorWrapper<Msg> {
     actor.around_receive(ctx.to_typed(true), typed_msg)
   }
 
-  fn child_terminated(&mut self, ctx: ActorContext<AnyMessage>, child: ActorRef<AnyMessage>) -> ActorResult<()> {
-    // NOTE
-    Ok(())
-    // log::info!("child_terminated: {:?}", ctx.clone().to_typed::<Msg>(false));
-    // let mut actor = self.actor.borrow_mut();
-    // actor.around_child_terminated(ctx.clone().to_typed(false), child)
+  fn child_terminated(&self, ctx: ActorContext<AnyMessage>, child: ActorRef<AnyMessage>) -> ActorResult<()> {
+    let actor = self.actor.borrow();
+    actor.around_child_terminated(ctx.clone().to_typed(false), child)
   }
 }
 
@@ -164,6 +178,12 @@ impl<Msg: Message> AnyMessageActorFunctionWrapper<Msg> {
   }
 }
 
+impl<Msg: Message> AsAny for AnyMessageActorFunctionWrapper<Msg> {
+  fn as_any(&self) -> &dyn Any {
+    self
+  }
+}
+
 impl<Msg: Message> ActorBehavior<AnyMessage> for AnyMessageActorFunctionWrapper<Msg> {
   fn pre_start(&mut self, _ctx: ActorContext<AnyMessage>) -> ActorResult<()> {
     let a = (self.actor_f)();
@@ -177,8 +197,8 @@ impl<Msg: Message> ActorBehavior<AnyMessage> for AnyMessageActorFunctionWrapper<
     actor.around_receive(ctx.to_typed(true), typed_msg)
   }
 
-  fn child_terminated(&mut self, ctx: ActorContext<AnyMessage>, child: ActorRef<AnyMessage>) -> ActorResult<()> {
-    let mut actor = self.actor.as_mut().unwrap().borrow_mut();
+  fn child_terminated(&self, ctx: ActorContext<AnyMessage>, child: ActorRef<AnyMessage>) -> ActorResult<()> {
+    let actor = self.actor.as_ref().unwrap().borrow();
     actor.around_child_terminated(ctx.to_typed(true), child)
   }
 }
