@@ -466,15 +466,17 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
       let mut current_message = inner.current_message.borrow_mut();
       *current_message = Some(msg.clone());
     }
-    let mut inner = mutex_lock_with_log!(self.inner, "invoke").clone();
 
     let auto_received_message = msg.clone().typed_message::<AnyMessage>();
     match auto_received_message {
       Ok(msg) => match msg.take::<AutoReceivedMessage>() {
         Ok(AutoReceivedMessage::Terminated(ar)) => {
-          let mut actor = inner.actor.as_mut().unwrap().borrow_mut();
-          let _ctx = ActorContext::new(self.clone(), self_ref.clone());
-          actor.around_child_terminated(ar.clone()).unwrap();
+          {
+            let _ctx = ActorContext::new(self.clone(), self_ref.clone());
+            let mut inner = mutex_lock_with_log!(self.inner, "invoke").clone();
+            let mut actor = inner.actor.as_mut().unwrap().borrow_mut();
+            actor.around_child_terminated(ar.clone()).unwrap();
+          }
           let is_empty = {
             let mut inner = mutex_lock_with_log!(self.inner, "invoke");
             inner.children.un_reserve_child(ar.path().name());
@@ -493,6 +495,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
         let ctx = ActorContext::new(self.clone(), self_ref.clone());
         let msg = msg.clone().typed_message::<Msg>().unwrap();
         log::info!("received_message - {:?}", msg);
+        let mut inner = mutex_lock_with_log!(self.inner, "invoke").clone();
         let mut actor = inner.actor.as_mut().unwrap().borrow_mut();
         actor.around_receive(ctx, msg).unwrap();
       }
