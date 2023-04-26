@@ -10,7 +10,8 @@ repository = "https://github.com/j5ik2o/actuator-rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-config = "0.13.3"
+pin-utils = "0.1.0"
+config = "0.10.1"
 anyhow = "1.0.65"
 thiserror = "1.0.35"
 log = "0.4"
@@ -30,6 +31,7 @@ crossbeam = "0.8"
 base64 = "0.21.0"
 base64-string-rs = "0.0.1"
 downcast = "0.11.0"
+dashmap = "3"
 [dev-dependencies]
 ctor = "0.2.0"
 env_logger = "0.10.0"
