@@ -384,10 +384,9 @@ impl ActorCell<AnyMessage> {
     let any_message_actor_wrapper = {
       let inner = mutex_lock_with_log!(self.inner, "to_typed");
       if let Some(actor) = &inner.actor {
-        let borrow = actor.borrow();
-
-        let result = borrow.as_any().downcast_ref::<AnyMessageActorWrapper<Msg>>().unwrap();
-        Some(result.actor.clone())
+        let ptr = Rc::into_raw(actor.clone()).cast::<AnyMessageActorWrapper<Msg>>();
+        let rc = unsafe { Rc::from_raw(ptr) };
+        Some(rc)
       } else {
         None
       }
@@ -415,7 +414,10 @@ impl ActorCell<AnyMessage> {
           dead_letter_mailbox: inner.dead_letter_mailbox.clone(),
           mailbox_sender: inner.mailbox_sender.clone().map(MailboxSender::to_typed),
           props: props.underlying,
-          actor: Self::check_actor(validate_actor, any_message_actor_wrapper),
+          actor: match any_message_actor_wrapper {
+            Some(actor) => Some(actor.actor.clone()),
+            None => None,
+          },
           children: inner.children.clone(),
           current_message: inner.current_message.clone(),
         },

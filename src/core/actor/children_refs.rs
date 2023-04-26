@@ -174,7 +174,6 @@ impl ChildrenRefs {
     props: Rc<dyn Props<U>>,
     name: &str,
   ) -> ActorRef<U> {
-    log::debug!("actor_with_name_of: {}", name);
     self.make_child(cell, self_ref, props, &Self::check_name(Some(name)))
   }
 
