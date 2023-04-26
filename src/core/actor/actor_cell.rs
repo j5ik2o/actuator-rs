@@ -391,12 +391,12 @@ impl ActorCell<AnyMessage> {
         None
       }
     };
-    let props = {
+    let inner_underlying = {
       let inner = mutex_lock_with_log!(self.inner, "to_typed");
       let props_rc = inner.props.clone();
       let ptr = Rc::into_raw(props_rc).cast::<AnyProps<Msg>>();
       let rc = unsafe { Rc::from_raw(ptr) };
-      (&*rc).clone()
+      rc.underlying.clone()
     };
     let inner = mutex_lock_with_log!(self.inner, "to_typed");
     ActorCell {
@@ -413,7 +413,7 @@ impl ActorCell<AnyMessage> {
           mailbox: inner.mailbox.clone().map(Mailbox::to_typed),
           dead_letter_mailbox: inner.dead_letter_mailbox.clone(),
           mailbox_sender: inner.mailbox_sender.clone().map(MailboxSender::to_typed),
-          props: props.underlying,
+          props: inner_underlying,
           actor: inner_actor,
           children: inner.children.clone(),
           current_message: inner.current_message.clone(),
@@ -602,7 +602,7 @@ mod tests {
   use crate::core::actor::actor_path::ActorPath;
   use crate::core::actor::actor_ref::ActorRef;
   use crate::core::actor::props::Props;
-  use crate::core::actor::{ActorBehavior, ActorResult, AsAny};
+  use crate::core::actor::{ActorBehavior, ActorResult};
   use crate::core::dispatch::any_message::AnyMessage;
   use crate::core::dispatch::dispatcher::Dispatcher;
   use crate::core::dispatch::mailbox::mailbox_type::MailboxType;
@@ -615,12 +615,6 @@ mod tests {
 
   #[derive(Debug, Clone)]
   struct TestActor;
-
-  impl AsAny for TestActor {
-    fn as_any(&self) -> &dyn Any {
-      todo!()
-    }
-  }
 
   impl ActorBehavior<String> for TestActor {
     fn receive(&mut self, _ctx: ActorContext<String>, _msg: String) -> ActorResult<()> {

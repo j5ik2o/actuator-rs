@@ -89,7 +89,7 @@ mod tests {
   use crate::core::actor::actor_path::ActorPath;
   use crate::core::actor::actor_ref::ActorRef;
   use crate::core::actor::props::Props;
-  use crate::core::actor::{ActorBehavior, ActorResult, AsAny};
+  use crate::core::actor::{ActorBehavior, ActorResult};
   use crate::core::dispatch::any_message::AnyMessage;
   use crate::core::dispatch::dispatcher::Dispatcher;
   use crate::core::dispatch::mailbox::mailbox_type::MailboxType;
@@ -97,12 +97,6 @@ mod tests {
 
   #[derive(Debug, Clone)]
   struct TestActor;
-
-  impl AsAny for TestActor {
-    fn as_any(&self) -> &dyn Any {
-      todo!()
-    }
-  }
 
   impl ActorBehavior<String> for TestActor {
     fn receive(&mut self, _ctx: ActorContext<String>, _msg: String) -> ActorResult<()> {

@@ -135,7 +135,7 @@ mod test {
   use crate::core::actor::actor_context::{ActorContext, ActorContextBehavior};
   use crate::core::actor::actor_ref::ActorRefBehavior;
   use crate::core::actor::props::FunctionProps;
-  use crate::core::actor::{ActorBehavior, ActorResult, AsAny};
+  use crate::core::actor::{ActorBehavior, ActorResult};
   use std::any::Any;
   use std::cell::RefCell;
   use std::env;
@@ -147,12 +147,6 @@ mod test {
   impl Drop for TestChildActor {
     fn drop(&mut self) {
       log::info!("TestChildActor drop");
-    }
-  }
-
-  impl AsAny for TestChildActor {
-    fn as_any(&self) -> &dyn Any {
-      todo!()
     }
   }
 
@@ -196,12 +190,6 @@ mod test {
         counter: 0,
         child_ref: None,
       }
-    }
-  }
-
-  impl AsAny for TestActor {
-    fn as_any(&self) -> &dyn Any {
-      self
     }
   }
 

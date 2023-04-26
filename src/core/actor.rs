@@ -30,11 +30,7 @@ pub enum ActorError {
   ActorFailed { message: String },
 }
 
-pub trait AsAny {
-  fn as_any(&self) -> &dyn Any;
-}
-
-pub trait ActorBehavior<Msg: Message>: Debug + AsAny {
+pub trait ActorBehavior<Msg: Message>: Debug {
   fn around_receive(&mut self, ctx: ActorContext<Msg>, msg: Msg) -> ActorResult<()> {
     self.receive(ctx, msg)
   }
@@ -101,12 +97,6 @@ pub struct MockActorMutable<Msg: Message> {
   p: PhantomData<Msg>,
 }
 
-impl<Msg: Message> AsAny for MockActorMutable<Msg> {
-  fn as_any(&self) -> &dyn Any {
-    self
-  }
-}
-
 impl<Msg: Message> ActorBehavior<Msg> for MockActorMutable<Msg> {
   fn receive(&mut self, _ctx: ActorContext<Msg>, _msg: Msg) -> ActorResult<()> {
     Ok(())
@@ -125,12 +115,6 @@ pub struct AnyMessageActorWrapper<Msg: Message> {
 impl<Msg: Message> AnyMessageActorWrapper<Msg> {
   pub fn new(actor: Rc<RefCell<dyn ActorBehavior<Msg>>>) -> Self {
     Self { actor }
-  }
-}
-
-impl<Msg: Message> AsAny for AnyMessageActorWrapper<Msg> {
-  fn as_any(&self) -> &dyn Any {
-    self
   }
 }
 
@@ -175,12 +159,6 @@ impl<Msg: Message> AnyMessageActorFunctionWrapper<Msg> {
       actor_f: Rc::new(f),
       actor: None,
     }
-  }
-}
-
-impl<Msg: Message> AsAny for AnyMessageActorFunctionWrapper<Msg> {
-  fn as_any(&self) -> &dyn Any {
-    self
   }
 }
 
