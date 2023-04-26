@@ -29,6 +29,7 @@ use crate::core::dispatch::system_message::SystemMessageQueueWriterBehavior;
 
 use crate::infrastructure::logging_mutex::LoggingMutex;
 
+use crate::core::actor::actor_handle::ActorHandle;
 use crate::mutex_lock_with_log;
 use tokio::sync::oneshot;
 
@@ -71,7 +72,6 @@ struct ActorCellInner<Msg: Message> {
   dead_letter_mailbox: Option<DeadLetterMailbox>,
   mailbox_sender: Option<MailboxSender<Msg>>,
   props: Rc<dyn Props<Msg>>,
-  actor: Option<Rc<RefCell<dyn ActorBehavior<Msg>>>>,
   children: ChildrenRefs,
   current_message: Rc<RefCell<Option<Envelope>>>,
 }
@@ -137,7 +137,6 @@ impl<Msg: Message> ActorCell<Msg> {
           mailbox_sender: None,
           dead_letter_mailbox: None,
           props,
-          actor: None,
           children: ChildrenRefs::new(),
           current_message: Rc::new(RefCell::new(None)),
         },
@@ -233,10 +232,6 @@ impl<Msg: Message> ActorCell<Msg> {
           dead_letter_mailbox: inner.dead_letter_mailbox.clone(),
           mailbox_sender: inner.mailbox_sender.clone().map(MailboxSender::to_any),
           props: Rc::new(AnyProps::new(inner.props.clone())),
-          actor: match &inner.actor {
-            None => None,
-            Some(actor) => Some(Rc::new(RefCell::new(AnyMessageActorWrapper::new(actor.clone())))),
-          },
           children: inner.children.clone(),
           current_message: inner.current_message.clone(),
         },
@@ -331,20 +326,15 @@ impl<Msg: Message> ActorCell<Msg> {
     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell not initialized");
     }
-    if self.exists_actor() {
-      panic!("ActorCell already started")
-    }
+    // if self.exists_actor() {
+    //   panic!("ActorCell already started")
+    // }
     let mut dispatcher = {
       let inner = mutex_lock_with_log!(self.inner, "start");
       inner.dispatcher.clone()
     };
     let ctx = ActorCellWithRef::new(self.clone(), self_ref.clone());
     dispatcher.attach(ctx);
-  }
-
-  fn exists_actor(&self) -> bool {
-    let inner = mutex_lock_with_log!(self.inner, "exsits_actor");
-    inner.actor.is_some()
   }
 
   pub(crate) fn stop(&mut self, self_ref: ActorRef<Msg>) {
@@ -360,12 +350,12 @@ impl<Msg: Message> ActorCell<Msg> {
   }
 
   pub(crate) fn suspend(&mut self, self_ref: ActorRef<Msg>) {
-    if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) && self.exists_actor() {
+    if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell not initialized");
     }
-    if !self.exists_actor() {
-      panic!("ActorCell not exists actor");
-    }
+    // if !self.exists_actor() {
+    //   panic!("ActorCell not exists actor");
+    // }
     let mut dispatcher = {
       let inner = mutex_lock_with_log!(self.inner, "suspend");
       inner.dispatcher.clone()
@@ -378,9 +368,9 @@ impl<Msg: Message> ActorCell<Msg> {
     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell not initialized");
     }
-    if !self.exists_actor() {
-      panic!("ActorCell not exists actor");
-    }
+    // if !self.exists_actor() {
+    //   panic!("ActorCell not exists actor");
+    // }
     let mut dispatcher = {
       let inner = mutex_lock_with_log!(self.inner, "resume");
       inner.dispatcher.clone()
@@ -398,21 +388,6 @@ impl ActorCell<AnyMessage> {
     if validate_actor && !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell not initialized");
     }
-    let inner_actor = {
-      let inner = mutex_lock_with_log!(self.inner, "to_typed");
-      if let Some(actor) = &inner.actor {
-        let result = {
-          let ptr = Rc::into_raw(actor.clone());
-          let raw_ptr_cast = ptr as *const RefCell<AnyMessageActorWrapper<Msg>>;
-          let rc = unsafe { Rc::from_raw(raw_ptr_cast) };
-          let b = rc.borrow();
-          b.inner_actor.clone()
-        };
-        Some(result)
-      } else {
-        None
-      }
-    };
     let inner_underlying = {
       let inner = mutex_lock_with_log!(self.inner, "to_typed");
       let props_rc = inner.props.clone();
@@ -436,7 +411,6 @@ impl ActorCell<AnyMessage> {
           dead_letter_mailbox: inner.dead_letter_mailbox.clone(),
           mailbox_sender: inner.mailbox_sender.clone().map(MailboxSender::to_typed),
           props: inner_underlying,
-          actor: inner_actor,
           children: inner.children.clone(),
           current_message: inner.current_message.clone(),
         },
@@ -450,9 +424,9 @@ pub trait ActorCellBehavior<Msg: Message> {
 
   fn mailbox_sender(&self) -> MailboxSender<Msg>;
 
-  fn invoke(&mut self, self_ref: ActorRef<Msg>, msg: &Envelope);
+  fn invoke(&mut self, handle: ActorHandle<Msg>, self_ref: ActorRef<Msg>, msg: &Envelope);
 
-  fn system_invoke(&mut self, self_ref: ActorRef<Msg>, msg: &SystemMessage);
+  fn system_invoke(&mut self, handle: ActorHandle<Msg>, self_ref: ActorRef<Msg>, msg: &SystemMessage);
 }
 
 impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
@@ -467,7 +441,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
     result
   }
 
-  fn invoke(&mut self, self_ref: ActorRef<Msg>, msg: &Envelope) {
+  fn invoke(&mut self, handle: ActorHandle<Msg>, self_ref: ActorRef<Msg>, msg: &Envelope) {
     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!(
         "ActorCell not initialized: path = {}, msg = {:?}",
@@ -493,10 +467,10 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
       Ok(msg) => match msg.take::<AutoReceivedMessage>() {
         Ok(AutoReceivedMessage::Terminated(ar)) => {
           {
-            let _ctx = ActorContext::new(self.clone(), self_ref.clone());
-            let mut inner = mutex_lock_with_log!(self.inner, "invoke").clone();
-            let mut actor = inner.actor.as_mut().unwrap().borrow_mut();
-            actor.around_child_terminated(_ctx, ar.clone()).unwrap();
+            let ctx = ActorContext::new(self.clone(), self_ref.clone());
+            let actor_rc = handle.get_actor().unwrap();
+            let mut actor = actor_rc.borrow_mut();
+            actor.around_child_terminated(ctx, ar.clone()).unwrap();
           }
           let is_empty = {
             let mut inner = mutex_lock_with_log!(self.inner, "invoke");
@@ -517,7 +491,8 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
         let msg = msg.clone().typed_message::<Msg>().unwrap();
         log::info!("received_message - {:?}", msg);
         let mut inner = mutex_lock_with_log!(self.inner, "invoke").clone();
-        let mut actor = inner.actor.as_mut().unwrap().borrow_mut();
+        let actor_rc = handle.get_actor().unwrap();
+        let mut actor = actor_rc.borrow_mut();
         actor.around_receive(ctx, msg).unwrap();
       }
     }
@@ -529,19 +504,20 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
     }
   }
 
-  fn system_invoke(&mut self, self_ref: ActorRef<Msg>, msg: &SystemMessage) {
+  fn system_invoke(&mut self, mut handle: ActorHandle<Msg>, self_ref: ActorRef<Msg>, msg: &SystemMessage) {
     if !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell not initialized");
     }
     match msg {
       SystemMessage::Create { failure: _ } => {
+        let ctx = ActorContext::new(self.clone(), self_ref.clone());
         let mut actor_rc = {
           let mut inner = mutex_lock_with_log!(self.inner, "system_invoke");
-          inner.actor = Some(inner.props.new_actor());
-          inner.actor.clone()
+          let actor = inner.props.new_actor();
+          handle.set_actor(actor.clone());
+          actor.clone()
         };
-        let ctx = ActorContext::new(self.clone(), self_ref);
-        let mut actor = actor_rc.as_mut().unwrap().borrow_mut();
+        let mut actor = actor_rc.borrow_mut();
         actor.around_pre_start(ctx).unwrap();
       }
       SystemMessage::Terminate => {
@@ -554,16 +530,14 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
           }
         }
         {
-          let mut inner = mutex_lock_with_log!(self.inner, "system_invoke");
-          match inner.actor {
-            Some(ref mut actor) => {
-              let ctx = ActorContext::new(self.clone(), self_ref.clone());
-              let mut actor_ref_mut = actor.borrow_mut();
-              actor_ref_mut.around_post_stop(ctx).unwrap();
+          let ctx = ActorContext::new(self.clone(), self_ref.clone());
+          let actor_rc_opt = handle.get_actor();
+          match actor_rc_opt {
+            Some(actor_rc) => {
+              let mut actor_ref_mut = actor_rc.borrow_mut();
+              actor_ref_mut.around_post_stop(ctx.clone()).unwrap();
             }
-            None => {
-              log::warn!("system_invoke: actor({}) is None", self_ref.path());
-            }
+            _ => {}
           }
         }
         if is_empty {
@@ -574,7 +548,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
           inner.children.clear();
           let parent_ref = inner.parent_ref.take();
           drop(parent_ref);
-          let actor = inner.actor.take();
+          let actor = handle.get_actor().take();
           drop(actor);
         }
       }

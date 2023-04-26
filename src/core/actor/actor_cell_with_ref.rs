@@ -49,11 +49,19 @@ impl<Msg: Message> ActorCellWithRef<Msg> {
   }
 
   pub fn invoke(&mut self, msg: &Envelope) {
-    self.actor_cell.invoke(self.actor_ref.clone(), msg);
+    self.actor_cell.invoke(
+      self.actor_ref.as_local().unwrap().actor_handle.clone(),
+      self.actor_ref.clone(),
+      msg,
+    );
   }
 
   pub fn system_invoke(&mut self, msg: &SystemMessage) {
-    self.actor_cell.system_invoke(self.actor_ref.clone(), msg);
+    self.actor_cell.system_invoke(
+      self.actor_ref.as_local().unwrap().actor_handle.clone(),
+      self.actor_ref.clone(),
+      msg,
+    );
   }
 
   pub fn mailbox(&self) -> Mailbox<Msg> {

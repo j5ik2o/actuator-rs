@@ -25,6 +25,7 @@ use crate::mutex_lock_with_log;
 use std::cmp::max;
 use std::fmt::{Debug, Formatter};
 
+use crate::core::actor::actor_context::ActorContext;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
