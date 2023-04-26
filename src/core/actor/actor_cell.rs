@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
 
 use std::rc::Rc;
 use std::sync::atomic::AtomicBool;
@@ -62,7 +62,7 @@ pub enum AutoReceivedMessage {
   Terminated(ActorRef<AnyMessage>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct ActorCellInner<Msg: Message> {
   path: ActorPath,
   parent_ref: Option<AnyActorRef>,
@@ -74,6 +74,23 @@ struct ActorCellInner<Msg: Message> {
   actor: Option<Rc<RefCell<dyn ActorBehavior<Msg>>>>,
   children: ChildrenRefs,
   current_message: Rc<RefCell<Option<Envelope>>>,
+}
+
+impl<Msg: Message> Debug for ActorCellInner<Msg> {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    f.debug_struct("ActorCellInner")
+      .field("path", &self.path)
+      .field("parent_ref", &self.parent_ref)
+      .field("dispatcher", &self.dispatcher)
+      .field("mailbox", &self.mailbox)
+      .field("dead_letter_mailbox", &self.dead_letter_mailbox)
+      .field("mailbox_sender", &self.mailbox_sender)
+      .field("props", &self.props)
+      .field("actor", &"Fn")
+      .field("children", &self.children)
+      .field("current_message", &self.current_message)
+      .finish()
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -384,9 +401,14 @@ impl ActorCell<AnyMessage> {
     let inner_actor = {
       let inner = mutex_lock_with_log!(self.inner, "to_typed");
       if let Some(actor) = &inner.actor {
-        let ptr = Rc::into_raw(actor.clone()).cast::<AnyMessageActorWrapper<Msg>>();
-        let rc = unsafe { Rc::from_raw(ptr) };
-        Some(rc.actor.clone())
+        let result = {
+          let ptr = Rc::into_raw(actor.clone());
+          let raw_ptr_cast = ptr as *const RefCell<AnyMessageActorWrapper<Msg>>;
+          let rc = unsafe { Rc::from_raw(raw_ptr_cast) };
+          let b = rc.borrow();
+          b.inner_actor.clone()
+        };
+        Some(result)
       } else {
         None
       }
@@ -474,7 +496,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
             let _ctx = ActorContext::new(self.clone(), self_ref.clone());
             let mut inner = mutex_lock_with_log!(self.inner, "invoke").clone();
             let mut actor = inner.actor.as_mut().unwrap().borrow_mut();
-            actor.around_child_terminated(ar.clone()).unwrap();
+            actor.around_child_terminated(_ctx, ar.clone()).unwrap();
           }
           let is_empty = {
             let mut inner = mutex_lock_with_log!(self.inner, "invoke");

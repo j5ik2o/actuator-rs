@@ -166,7 +166,11 @@ mod test {
       Ok(())
     }
 
-    fn child_terminated(&mut self, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
+    fn child_terminated(
+      &mut self,
+      // _ctx: ActorContext<Msg>,
+      _child: ActorRef<AnyMessage>,
+    ) -> ActorResult<()> {
       log::info!("TestChildActor child_terminated");
       Ok(())
     }
@@ -207,7 +211,11 @@ mod test {
       Ok(())
     }
 
-    fn child_terminated(&mut self, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
+    fn child_terminated(
+      &mut self,
+      // _ctx: ActorContext<Msg>,
+      _child: ActorRef<AnyMessage>,
+    ) -> ActorResult<()> {
       log::info!("TestActor child_terminated");
       Ok(())
     }

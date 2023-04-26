@@ -82,11 +82,11 @@ pub trait ActorBehavior<Msg: Message>: Debug {
     Ok(())
   }
 
-  fn around_child_terminated(&mut self, child: ActorRef<AnyMessage>) -> ActorResult<()> {
+  fn around_child_terminated(&mut self, _ctx: ActorContext<Msg>, child: ActorRef<AnyMessage>) -> ActorResult<()> {
     self.child_terminated(child)
   }
 
-  fn child_terminated(&mut self, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
+  fn child_terminated(&mut self, /* _ctx: ActorContext<Msg>, */ _child: ActorRef<AnyMessage>) -> ActorResult<()> {
     log::info!("default child_terminated");
     Ok(())
   }
@@ -102,81 +102,33 @@ impl<Msg: Message> ActorBehavior<Msg> for MockActorMutable<Msg> {
     Ok(())
   }
 
-  fn child_terminated(&mut self, _child: ActorRef<AnyMessage>) -> ActorResult<()> {
+  fn child_terminated(&mut self, /* _ctx: ActorContext<Msg>, */ _child: ActorRef<AnyMessage>) -> ActorResult<()> {
     Ok(())
   }
 }
 
 #[derive(Debug, Clone)]
 pub struct AnyMessageActorWrapper<Msg: Message> {
-  actor: Rc<RefCell<dyn ActorBehavior<Msg>>>,
+  inner_actor: Rc<RefCell<dyn ActorBehavior<Msg>>>,
 }
 
 impl<Msg: Message> AnyMessageActorWrapper<Msg> {
   pub fn new(actor: Rc<RefCell<dyn ActorBehavior<Msg>>>) -> Self {
-    Self { actor }
+    Self { inner_actor: actor }
   }
 }
 
 impl<Msg: Message> ActorBehavior<AnyMessage> for AnyMessageActorWrapper<Msg> {
   fn receive(&mut self, ctx: ActorContext<AnyMessage>, msg: AnyMessage) -> ActorResult<()> {
     let typed_msg = msg.take::<Msg>().unwrap();
-    let mut actor = self.actor.borrow_mut();
-    actor.around_receive(ctx.to_typed(true), typed_msg)
+    let typed_ctx = ctx.to_typed(true);
+    let mut actor = self.inner_actor.borrow_mut();
+    actor.around_receive(typed_ctx, typed_msg)
   }
 
-  fn child_terminated(&mut self, child: ActorRef<AnyMessage>) -> ActorResult<()> {
-    let mut actor = self.actor.borrow_mut();
-    actor.around_child_terminated(child)
-  }
-}
-
-pub struct AnyMessageActorFunctionWrapper<Msg: Message> {
-  actor_f: Rc<dyn Fn() -> Rc<RefCell<dyn ActorBehavior<Msg>>>>,
-  actor: Option<Rc<RefCell<dyn ActorBehavior<Msg>>>>,
-}
-
-impl<Msg: Message> Debug for AnyMessageActorFunctionWrapper<Msg> {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    f.debug_struct("AnyMessageActorFunctionWrapper").finish()
-  }
-}
-
-impl<Msg: Message> Clone for AnyMessageActorFunctionWrapper<Msg> {
-  fn clone(&self) -> Self {
-    Self {
-      actor_f: self.actor_f.clone(),
-      actor: self.actor.clone(),
-    }
-  }
-}
-
-impl<Msg: Message> AnyMessageActorFunctionWrapper<Msg> {
-  pub fn new<F>(f: F) -> Self
-  where
-    F: Fn() -> Rc<RefCell<dyn ActorBehavior<Msg>>> + 'static, {
-    Self {
-      actor_f: Rc::new(f),
-      actor: None,
-    }
-  }
-}
-
-impl<Msg: Message> ActorBehavior<AnyMessage> for AnyMessageActorFunctionWrapper<Msg> {
-  fn pre_start(&mut self, _ctx: ActorContext<AnyMessage>) -> ActorResult<()> {
-    let a = (self.actor_f)();
-    self.actor = Some(a);
-    Ok(())
-  }
-
-  fn receive(&mut self, ctx: ActorContext<AnyMessage>, msg: AnyMessage) -> ActorResult<()> {
-    let typed_msg = msg.take::<Msg>().unwrap();
-    let mut actor = self.actor.as_mut().unwrap().borrow_mut();
-    actor.around_receive(ctx.to_typed(true), typed_msg)
-  }
-
-  fn child_terminated(&mut self, child: ActorRef<AnyMessage>) -> ActorResult<()> {
-    let mut actor = self.actor.as_ref().unwrap().borrow_mut();
-    actor.around_child_terminated(child)
+  fn child_terminated(&mut self, /* _ctx: ActorContext<Msg>, */ child: ActorRef<AnyMessage>) -> ActorResult<()> {
+    // let typed_ctx = _ctx.to_typed(false);
+    let mut actor = self.inner_actor.borrow_mut();
+    actor.child_terminated(child)
   }
 }
