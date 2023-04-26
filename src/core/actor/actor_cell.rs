@@ -607,7 +607,7 @@ mod tests {
   use crate::core::dispatch::dispatcher::Dispatcher;
   use crate::core::dispatch::mailbox::mailbox_type::MailboxType;
   use crate::core::dispatch::mailboxes::Mailboxes;
-  use std::any::Any;
+
   use std::cell::RefCell;
   use std::env;
   use std::rc::Rc;

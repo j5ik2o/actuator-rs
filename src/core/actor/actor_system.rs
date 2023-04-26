@@ -136,7 +136,7 @@ mod test {
   use crate::core::actor::actor_ref::ActorRefBehavior;
   use crate::core::actor::props::FunctionProps;
   use crate::core::actor::{ActorBehavior, ActorResult};
-  use std::any::Any;
+
   use std::cell::RefCell;
   use std::env;
   use tokio::runtime;

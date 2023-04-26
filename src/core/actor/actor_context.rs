@@ -78,7 +78,7 @@ impl<Msg: Message> ActorContextBehavior<Msg> for ActorContext<Msg> {
 
 #[cfg(test)]
 mod tests {
-  use std::any::Any;
+
   use std::cell::RefCell;
   use std::env;
   use std::rc::Rc;
