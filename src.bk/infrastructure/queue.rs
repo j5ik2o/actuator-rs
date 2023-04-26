@@ -5,13 +5,13 @@ use std::sync::Arc;
 use anyhow::Result;
 use thiserror::Error;
 
-pub use blocking_queue::*;
-pub use queue_mpsc::*;
+use crate::infrastructure::queue::blocking_queue::BlockingQueue;
+use crate::infrastructure::queue::queue_mpsc::{QueueMPSC, QueueMPSCReader, QueueMPSCWriter};
 pub use queue_vec::*;
 
-mod blocking_queue;
-mod queue_mpsc;
-mod queue_vec;
+pub mod blocking_queue;
+pub mod queue_mpsc;
+pub mod queue_vec;
 
 pub trait Element: Debug + Clone + Send + Sync {}
 
@@ -43,6 +43,7 @@ impl<T: Debug + Clone + Send + Sync> Element for Box<T> {}
 
 impl<T: Debug + Clone + Send + Sync> Element for Arc<T> {}
 
+#[allow(dead_code)]
 #[derive(Error, Debug)]
 pub enum QueueError<E> {
   #[error("Failed to offer an element: {0:?}")]
@@ -100,7 +101,7 @@ impl PartialOrd<QueueSize> for QueueSize {
   }
 }
 
-pub trait QueueBehavior<E>: Send {
+pub trait QueueBehavior<E: Element>: Clone {
   /// Returns whether this queue is empty.<br/>
   /// このキューが空かどうかを返します。
   fn is_empty(&self) -> bool {
@@ -132,30 +133,68 @@ pub trait QueueBehavior<E>: Send {
   /// Returns the capacity of this queue.<br/>
   /// このキューの最大容量を返します。
   fn capacity(&self) -> QueueSize;
+}
 
+pub trait QueueWriterFactoryBehavior<E: Element> {
+  type Writer: QueueWriterBehavior<E>;
+  fn writer(&self) -> Self::Writer;
+}
+
+pub trait QueueReaderFactoryBehavior<E: Element> {
+  type Reader: QueueReaderBehavior<E>;
+  fn reader(&self) -> Self::Reader;
+}
+
+pub trait QueueRWFactoryBehavior<E: Element>: QueueWriterFactoryBehavior<E> + QueueReaderFactoryBehavior<E> {}
+pub trait QueueWithRWFactoryBehavior<E: Element>: QueueBehavior<E> + QueueRWFactoryBehavior<E> {}
+
+pub trait QueueWriterBehavior<E: Element>: QueueBehavior<E> {
   /// The specified element will be inserted into this queue,
   /// if the queue can be executed immediately without violating the capacity limit.<br/>
   /// 容量制限に違反せずにすぐ実行できる場合は、指定された要素をこのキューに挿入します。
   fn offer(&mut self, e: E) -> Result<()>;
+}
 
+pub trait QueueReaderBehavior<E: Element>: QueueBehavior<E> {
   /// Retrieves and deletes the head of the queue. Returns None if the queue is empty.<br/>
   /// キューの先頭を取得および削除します。キューが空の場合は None を返します。
   fn poll(&mut self) -> Result<Option<E>>;
 }
 
-pub trait HasPeekBehavior<E: Element>: QueueBehavior<E> {
+pub trait HasPeekBehavior<E: Element>: QueueReaderBehavior<E> {
   /// Gets the head of the queue, but does not delete it. Returns None if the queue is empty.<br/>
   /// キューの先頭を取得しますが、削除しません。キューが空の場合は None を返します。
   fn peek(&self) -> Result<Option<E>>;
 }
 
-pub trait BlockingQueueBehavior<E: Element>: QueueBehavior<E> + Send {
+pub trait BlockingQueueBehavior<E: Element>: QueueBehavior<E> {}
+
+pub trait BlockingQueueWriterFactoryBehavior<E: Element> {
+  type Writer: BlockingQueueWriterBehavior<E>;
+  fn writer(&self) -> Self::Writer;
+}
+
+pub trait BlockingQueueReaderFactoryBehavior<E: Element> {
+  type Reader: BlockingQueueReaderBehavior<E>;
+  fn reader(&self) -> Self::Reader;
+}
+
+pub trait BlockingQueueRWFactoryBehavior<E: Element>:
+  BlockingQueueWriterFactoryBehavior<E> + BlockingQueueReaderFactoryBehavior<E> {
+}
+pub trait BlockingQueueWithRWFactoryBehavior<E: Element>:
+  BlockingQueueBehavior<E> + BlockingQueueRWFactoryBehavior<E> {
+}
+
+pub trait BlockingQueueWriterBehavior<E: Element>: QueueWriterBehavior<E> {
   /// Inserts the specified element into this queue. If necessary, waits until space is available.<br/>
   /// 指定された要素をこのキューに挿入します。必要に応じて、空きが生じるまで待機します。
   fn put(&mut self, e: E) -> Result<()>;
+}
 
-  /// Retrieve the head of this queue and delete it. If necessary, wait until an element becomes available.<br/>
-  /// このキューの先頭を取得して削除します。必要に応じて、要素が利用可能になるまで待機します。
+pub trait BlockingQueueReaderBehavior<E: Element>: QueueReaderBehavior<E> {
+  /// Retrieves and deletes the head of the queue. If necessary, wait until an element becomes available.<br/>
+  /// キューの先頭を取得および削除します。必要に応じて、要素が利用可能になるまで待機します。
   fn take(&mut self) -> Result<Option<E>>;
 }
 
@@ -165,9 +204,31 @@ pub enum QueueType {
 }
 
 #[derive(Debug, Clone)]
-pub enum Queue<T> {
-  Vec(QueueVec<T>),
-  MPSC(QueueMPSC<T>),
+pub enum Queue<E: Element> {
+  Vec(QueueVec<E>),
+  MPSC(QueueMPSC<E>),
+}
+
+impl<E: Element + PartialEq> PartialEq for Queue<E> {
+  fn eq(&self, other: &Self) -> bool {
+    match (self, other) {
+      (Queue::Vec(l), Queue::Vec(r)) => l == r,
+      (Queue::MPSC(l), Queue::MPSC(r)) => l == r,
+      _ => false,
+    }
+  }
+}
+
+#[derive(Debug, Clone)]
+pub enum QueueWriter<E: Element> {
+  Vec(QueueVecWriter<E>),
+  MPSC(QueueMPSCWriter<E>),
+}
+
+#[derive(Debug, Clone)]
+pub enum QueueReader<E: Element> {
+  Vec(QueueVecReader<E>),
+  MPSC(QueueMPSCReader<E>),
 }
 
 impl<T: Element + 'static> Queue<T> {
@@ -176,32 +237,96 @@ impl<T: Element + 'static> Queue<T> {
   }
 }
 
-impl<T: Element + 'static> QueueBehavior<T> for Queue<T> {
+impl<E: Element + 'static> QueueBehavior<E> for Queue<E> {
   fn len(&self) -> QueueSize {
     match self {
-      Queue::Vec(inner) => inner.len(),
-      Queue::MPSC(inner) => inner.len(),
+      Queue::Vec(q) => q.len(),
+      Queue::MPSC(q) => q.len(),
     }
   }
 
   fn capacity(&self) -> QueueSize {
     match self {
-      Queue::Vec(inner) => inner.capacity(),
-      Queue::MPSC(inner) => inner.capacity(),
+      Queue::Vec(q) => q.capacity(),
+      Queue::MPSC(q) => q.capacity(),
+    }
+  }
+}
+
+impl<E: Element + 'static> QueueRWFactoryBehavior<E> for Queue<E> {}
+
+impl<E: Element + 'static> QueueWriterFactoryBehavior<E> for Queue<E> {
+  type Writer = QueueWriter<E>;
+
+  fn writer(&self) -> Self::Writer {
+    match self {
+      Queue::Vec(q) => QueueWriter::Vec(q.writer()),
+      Queue::MPSC(q) => QueueWriter::MPSC(q.writer()),
+    }
+  }
+}
+
+impl<E: Element + 'static> QueueReaderFactoryBehavior<E> for Queue<E> {
+  type Reader = QueueReader<E>;
+
+  fn reader(&self) -> Self::Reader {
+    match self {
+      Queue::Vec(q) => QueueReader::Vec(q.reader()),
+      Queue::MPSC(q) => QueueReader::MPSC(q.reader()),
+    }
+  }
+}
+
+impl<E: Element + 'static> QueueWithRWFactoryBehavior<E> for Queue<E> {}
+
+// ---
+
+impl<E: Element + 'static> QueueBehavior<E> for QueueWriter<E> {
+  fn len(&self) -> QueueSize {
+    match self {
+      QueueWriter::Vec(q) => q.len(),
+      QueueWriter::MPSC(q) => q.len(),
     }
   }
 
-  fn offer(&mut self, e: T) -> Result<()> {
+  fn capacity(&self) -> QueueSize {
     match self {
-      Queue::Vec(inner) => inner.offer(e),
-      Queue::MPSC(inner) => inner.offer(e),
+      QueueWriter::Vec(q) => q.capacity(),
+      QueueWriter::MPSC(q) => q.capacity(),
+    }
+  }
+}
+
+impl<E: Element + 'static> QueueWriterBehavior<E> for QueueWriter<E> {
+  fn offer(&mut self, e: E) -> Result<()> {
+    match self {
+      QueueWriter::Vec(q) => q.offer(e),
+      QueueWriter::MPSC(q) => q.offer(e),
+    }
+  }
+}
+
+impl<E: Element + 'static> QueueBehavior<E> for QueueReader<E> {
+  fn len(&self) -> QueueSize {
+    match self {
+      QueueReader::Vec(q) => q.len(),
+      QueueReader::MPSC(q) => q.len(),
     }
   }
 
-  fn poll(&mut self) -> Result<Option<T>> {
+  fn capacity(&self) -> QueueSize {
     match self {
-      Queue::Vec(inner) => inner.poll(),
-      Queue::MPSC(inner) => inner.poll(),
+      QueueReader::Vec(q) => q.capacity(),
+      QueueReader::MPSC(q) => q.capacity(),
+    }
+  }
+}
+
+impl<E: Element + 'static> QueueReaderBehavior<E> for QueueReader<E> {
+  fn poll(&mut self) -> Result<Option<E>> {
+    match self {
+      QueueReader::Vec(q) => q.poll(),
+      QueueReader::MPSC(q) => q.poll(),
     }
   }
 }
