@@ -71,6 +71,7 @@ struct ActorCellInner<Msg: Message> {
   dead_letter_mailbox: Option<DeadLetterMailbox>,
   mailbox_sender: Option<MailboxSender<Msg>>,
   props: Rc<dyn Props<Msg>>,
+  actor: Option<Rc<RefCell<dyn ActorBehavior<Msg>>>>,
   children: ChildrenRefs,
   current_message: Rc<RefCell<Option<Envelope>>>,
 }
@@ -99,7 +100,6 @@ pub struct ActorCell<Msg: Message> {
   path: ActorPath,
   terminated_rx: Arc<Mutex<Option<oneshot::Receiver<()>>>>,
   tx: Arc<Mutex<Option<oneshot::Sender<()>>>>,
-  actor: Option<Rc<RefCell<dyn ActorBehavior<Msg>>>>,
 }
 
 unsafe impl<Msg: Message> Send for ActorCell<Msg> {}
@@ -123,7 +123,6 @@ impl<Msg: Message> ActorCell<Msg> {
   ) -> Self {
     let (tx, rx) = oneshot::channel();
     ActorCell {
-      actor: None,
       terminated_rx: Arc::new(Mutex::new(Some(rx))),
       tx: Arc::new(Mutex::new(Some(tx))),
       path: path.clone(),
@@ -138,6 +137,7 @@ impl<Msg: Message> ActorCell<Msg> {
           mailbox_sender: None,
           dead_letter_mailbox: None,
           props,
+          actor: None,
           children: ChildrenRefs::new(),
           current_message: Rc::new(RefCell::new(None)),
         },
@@ -219,10 +219,6 @@ impl<Msg: Message> ActorCell<Msg> {
     }
     let inner = mutex_lock_with_log!(self.inner, "to_any");
     ActorCell {
-      actor: match &self.actor {
-        None => None,
-        Some(actor) => Some(Rc::new(RefCell::new(AnyMessageActorWrapper::new(actor.clone())))),
-      },
       terminated_rx: self.terminated_rx.clone(),
       tx: self.tx.clone(),
       path: inner.path.clone(),
@@ -237,6 +233,10 @@ impl<Msg: Message> ActorCell<Msg> {
           dead_letter_mailbox: inner.dead_letter_mailbox.clone(),
           mailbox_sender: inner.mailbox_sender.clone().map(MailboxSender::to_any),
           props: Rc::new(AnyProps::new(inner.props.clone())),
+          actor: match &inner.actor {
+            None => None,
+            Some(actor) => Some(Rc::new(RefCell::new(AnyMessageActorWrapper::new(actor.clone())))),
+          },
           children: inner.children.clone(),
           current_message: inner.current_message.clone(),
         },
@@ -343,7 +343,8 @@ impl<Msg: Message> ActorCell<Msg> {
   }
 
   fn exists_actor(&self) -> bool {
-    self.actor.is_some()
+    let inner = mutex_lock_with_log!(self.inner, "exsits_actor");
+    inner.actor.is_some()
   }
 
   pub(crate) fn stop(&mut self, self_ref: ActorRef<Msg>) {
@@ -399,7 +400,7 @@ impl ActorCell<AnyMessage> {
     }
     let inner_actor = {
       let inner = mutex_lock_with_log!(self.inner, "to_typed");
-      if let Some(actor) = &self.actor {
+      if let Some(actor) = &inner.actor {
         let result = {
           let ptr = Rc::into_raw(actor.clone());
           let raw_ptr_cast = ptr as *const RefCell<AnyMessageActorWrapper<Msg>>;
@@ -421,7 +422,6 @@ impl ActorCell<AnyMessage> {
     };
     let inner = mutex_lock_with_log!(self.inner, "to_typed");
     ActorCell {
-      actor: inner_actor,
       terminated_rx: self.terminated_rx,
       tx: self.tx,
       path: inner.path.clone(),
@@ -436,6 +436,7 @@ impl ActorCell<AnyMessage> {
           dead_letter_mailbox: inner.dead_letter_mailbox.clone(),
           mailbox_sender: inner.mailbox_sender.clone().map(MailboxSender::to_typed),
           props: inner_underlying,
+          actor: inner_actor,
           children: inner.children.clone(),
           current_message: inner.current_message.clone(),
         },
@@ -493,7 +494,8 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
         Ok(AutoReceivedMessage::Terminated(ar)) => {
           {
             let _ctx = ActorContext::new(self.clone(), self_ref.clone());
-            let mut actor = self.actor.as_mut().unwrap().borrow_mut();
+            let mut inner = mutex_lock_with_log!(self.inner, "invoke").clone();
+            let mut actor = inner.actor.as_mut().unwrap().borrow_mut();
             actor.around_child_terminated(_ctx, ar.clone()).unwrap();
           }
           let is_empty = {
@@ -514,7 +516,8 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
         let ctx = ActorContext::new(self.clone(), self_ref.clone());
         let msg = msg.clone().typed_message::<Msg>().unwrap();
         log::info!("received_message - {:?}", msg);
-        let mut actor = self.actor.as_mut().unwrap().borrow_mut();
+        let mut inner = mutex_lock_with_log!(self.inner, "invoke").clone();
+        let mut actor = inner.actor.as_mut().unwrap().borrow_mut();
         actor.around_receive(ctx, msg).unwrap();
       }
     }
@@ -533,9 +536,9 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
     match msg {
       SystemMessage::Create { failure: _ } => {
         let mut actor_rc = {
-          let inner = mutex_lock_with_log!(self.inner, "system_invoke");
-          self.actor = Some(inner.props.new_actor());
-          self.actor.clone()
+          let mut inner = mutex_lock_with_log!(self.inner, "system_invoke");
+          inner.actor = Some(inner.props.new_actor());
+          inner.actor.clone()
         };
         let ctx = ActorContext::new(self.clone(), self_ref);
         let mut actor = actor_rc.as_mut().unwrap().borrow_mut();
@@ -552,9 +555,9 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
         }
         {
           let mut inner = mutex_lock_with_log!(self.inner, "system_invoke");
-          let ctx = ActorContext::new(self.clone(), self_ref.clone());
-          match self.actor {
+          match inner.actor {
             Some(ref mut actor) => {
+              let ctx = ActorContext::new(self.clone(), self_ref.clone());
               let mut actor_ref_mut = actor.borrow_mut();
               actor_ref_mut.around_post_stop(ctx).unwrap();
             }
@@ -571,7 +574,7 @@ impl<Msg: Message> ActorCellBehavior<Msg> for ActorCell<Msg> {
           inner.children.clear();
           let parent_ref = inner.parent_ref.take();
           drop(parent_ref);
-          let actor = self.actor.take();
+          let actor = inner.actor.take();
           drop(actor);
         }
       }
