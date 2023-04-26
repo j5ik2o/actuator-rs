@@ -381,12 +381,12 @@ impl ActorCell<AnyMessage> {
     if validate_actor && !self.initialized.load(std::sync::atomic::Ordering::Relaxed) {
       panic!("ActorCell not initialized");
     }
-    let any_message_actor_wrapper = {
+    let inner_actor = {
       let inner = mutex_lock_with_log!(self.inner, "to_typed");
       if let Some(actor) = &inner.actor {
         let ptr = Rc::into_raw(actor.clone()).cast::<AnyMessageActorWrapper<Msg>>();
         let rc = unsafe { Rc::from_raw(ptr) };
-        Some(rc)
+        Some(rc.actor.clone())
       } else {
         None
       }
@@ -414,10 +414,7 @@ impl ActorCell<AnyMessage> {
           dead_letter_mailbox: inner.dead_letter_mailbox.clone(),
           mailbox_sender: inner.mailbox_sender.clone().map(MailboxSender::to_typed),
           props: props.underlying,
-          actor: match any_message_actor_wrapper {
-            Some(actor) => Some(actor.actor.clone()),
-            None => None,
-          },
+          actor: inner_actor,
           children: inner.children.clone(),
           current_message: inner.current_message.clone(),
         },
