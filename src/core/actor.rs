@@ -1,7 +1,6 @@
 pub mod actor_cell;
 pub mod actor_cell_with_ref;
 pub mod actor_context;
-pub mod actor_handle;
 pub mod actor_path;
 pub mod actor_ref;
 pub mod actor_ref_provider;

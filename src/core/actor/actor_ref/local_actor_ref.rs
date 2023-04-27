@@ -1,5 +1,4 @@
 use crate::core::actor::actor_cell::ActorCell;
-use crate::core::actor::actor_handle::ActorHandle;
 use crate::core::actor::actor_path::ActorPath;
 use crate::core::actor::actor_ref::ActorRef;
 use crate::core::actor::ActorError;
@@ -9,8 +8,8 @@ use crate::core::dispatch::system_message::system_message_entry::SystemMessageEn
 
 #[derive(Debug, Clone)]
 pub struct LocalActorRef<Msg: Message> {
+  _phantom: std::marker::PhantomData<Msg>,
   actor_cell: ActorCell<Msg>,
-  pub(crate) actor_handle: ActorHandle<Msg>,
   path: ActorPath,
 }
 
@@ -23,8 +22,8 @@ impl<Msg: Message> PartialEq for LocalActorRef<Msg> {
 impl<Msg: Message> LocalActorRef<Msg> {
   pub fn new(actor_cell: ActorCell<Msg>, path: ActorPath) -> Self {
     Self {
+      _phantom: std::marker::PhantomData,
       actor_cell,
-      actor_handle: ActorHandle::new(),
       path,
     }
   }
@@ -34,11 +33,7 @@ impl<Msg: Message> LocalActorRef<Msg> {
   }
 
   pub fn to_any(self, validate_actor: bool) -> LocalActorRef<AnyMessage> {
-    LocalActorRef::<AnyMessage> {
-      actor_cell: self.actor_cell.to_any(validate_actor),
-      actor_handle: self.actor_handle.to_any(),
-      path: self.path,
-    }
+    LocalActorRef::<AnyMessage>::new(self.actor_cell.to_any(validate_actor), self.path)
   }
 
   pub fn path(&self) -> ActorPath {
@@ -77,8 +72,8 @@ impl<Msg: Message> LocalActorRef<Msg> {
 impl LocalActorRef<AnyMessage> {
   pub fn to_typed<Msg: Message>(self, validate_actor: bool) -> LocalActorRef<Msg> {
     LocalActorRef {
+      _phantom: std::marker::PhantomData,
       actor_cell: self.actor_cell.to_typed(validate_actor),
-      actor_handle: self.actor_handle.to_typed(),
       path: self.path,
     }
   }
