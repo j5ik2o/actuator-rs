@@ -7,7 +7,8 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 pub trait Props<Msg: Message>: Debug {
-  fn new_actor(&self) -> Rc<RefCell<dyn ActorBehavior<Msg>>>;
+  type Actor: ActorBehavior<Msg>;
+  fn new_actor(&self) -> Self::Actor;
 }
 
 #[derive(Debug, Clone)]
@@ -22,41 +23,48 @@ impl<Msg: Message> MockProps<Msg> {
 }
 
 impl<Msg: Message> Props<Msg> for MockProps<Msg> {
-  fn new_actor(&self) -> Rc<RefCell<dyn ActorBehavior<Msg>>> {
-    Rc::new(RefCell::new(MockActorMutable { p: PhantomData }))
+  type Actor = MockActorMutable<Msg>;
+
+  fn new_actor(&self) -> Self::Actor {
+    MockActorMutable { p: PhantomData }
   }
 }
 
 #[derive(Debug, Clone)]
 pub struct AnyProps<Msg: Message> {
-  pub underlying: Rc<dyn Props<Msg>>,
+  pub underlying: Rc<dyn Props<Msg, Actor = AnyMessageActorWrapper<Msg>>>,
 }
 
 impl<Msg: Message> AnyProps<Msg> {
-  pub fn new(underlying: Rc<dyn Props<Msg>>) -> Self {
+  pub fn new(underlying: Rc<dyn Props<Msg, Actor = AnyMessageActorWrapper<Msg>>>) -> Self {
     Self { underlying }
   }
 }
 
 impl<Msg: Message> Props<AnyMessage> for AnyProps<Msg> {
-  fn new_actor(&self) -> Rc<RefCell<dyn ActorBehavior<AnyMessage>>> {
-    Rc::new(RefCell::new(AnyMessageActorWrapper::new(self.underlying.new_actor())))
+  type Actor = AnyMessageActorWrapper<Msg>;
+
+  fn new_actor(&self) -> Self::Actor {
+    AnyMessageActorWrapper::new(self.underlying.new_actor())
   }
+  // fn new_actor<A: ActorBehavior<Msg>>(&self) -> A {
+  //   AnyMessageActorWrapper::new(self.underlying.new_actor())
+  // }
 }
 
 #[derive(Debug, Clone)]
-pub struct SingletonProps<Msg: Message> {
-  actor: Rc<RefCell<dyn ActorBehavior<Msg>>>,
+pub struct SingletonProps<Msg: Message, A: ActorBehavior<Msg> + Clone> {
+  actor: A,
 }
 
-impl<Msg: Message> SingletonProps<Msg> {
-  pub fn new(actor: Rc<RefCell<dyn ActorBehavior<Msg>>>) -> Self {
+impl<Msg: Message, A: ActorBehavior<Msg> + Clone> SingletonProps<Msg, A> {
+  pub fn new(actor: A) -> Self {
     Self { actor }
   }
 }
 
-impl<Msg: Message> Props<Msg> for SingletonProps<Msg> {
-  fn new_actor(&self) -> Rc<RefCell<dyn ActorBehavior<Msg>>> {
+impl<Msg: Message, A: ActorBehavior<Msg> + Clone> Props<Msg> for SingletonProps<Msg, A> {
+  fn new_actor<X: ActorBehavior<Msg>>(&self) -> X {
     self.actor.clone()
   }
 }

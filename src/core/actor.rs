@@ -108,22 +108,21 @@ impl<Msg: Message> ActorBehavior<Msg> for MockActorMutable<Msg> {
 }
 
 #[derive(Debug, Clone)]
-pub struct AnyMessageActorWrapper<Msg: Message> {
-  inner_actor: Rc<RefCell<dyn ActorBehavior<Msg>>>,
+pub struct AnyMessageActorWrapper<Msg: Message, Actor: ActorBehavior<Msg>> {
+  inner_actor: Actor,
 }
 
-impl<Msg: Message> AnyMessageActorWrapper<Msg> {
-  pub fn new(actor: Rc<RefCell<dyn ActorBehavior<Msg>>>) -> Self {
+impl<Msg: Message, Actor: ActorBehavior<Msg>> AnyMessageActorWrapper<Msg, Actor> {
+  pub fn new(actor: Actor) -> Self {
     Self { inner_actor: actor }
   }
 }
 
-impl<Msg: Message> ActorBehavior<AnyMessage> for AnyMessageActorWrapper<Msg> {
+impl<Msg: Message, Actor: ActorBehavior<Msg>> ActorBehavior<AnyMessage> for AnyMessageActorWrapper<Msg, Actor> {
   fn receive(&mut self, ctx: ActorContext<AnyMessage>, msg: AnyMessage) -> ActorResult<()> {
     let typed_msg = msg.take::<Msg>().unwrap();
     let typed_ctx = ctx.to_typed(true);
-    let mut actor = self.inner_actor.borrow_mut();
-    actor.around_receive(typed_ctx, typed_msg)
+    self.inner_actor.around_receive(typed_ctx, typed_msg)
   }
 
   fn child_terminated(&mut self, /* _ctx: ActorContext<Msg>, */ child: ActorRef<AnyMessage>) -> ActorResult<()> {
